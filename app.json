@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Restaurant Purchase Manager",
+    "slug": "restaurant-purchase-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#4CAF50"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.restaurant.purchaseapp",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app requires camera access to take photos of purchased items.",
+        "NSPhotoLibraryUsageDescription": "This app requires photo library access to upload item images.",
+        "NSPhotoLibraryAddUsageDescription": "This app requires permission to save photos to your library."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#4CAF50"
+      },
+      "package": "com.restaurant.purchaseapp",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "This app requires photo library access to upload item images.",
+          "cameraPermission": "This app requires camera access to take photos of purchased items."
+        }
+      ],
+      "expo-font",
+      "expo-asset"
+    ]
+  }
+}

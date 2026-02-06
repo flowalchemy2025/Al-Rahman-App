@@ -1,0 +1,40 @@
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# OSX
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Ruby / CocoaPods
+/ios/Pods/
+/vendor/bundle/
+
+# Environment variables
+.env
+.env.local
+
+# Supabase credentials
+src/services/supabase.credentials.js
+
+# Temporary files
+*.orig.*
+*.log
+
+# Android/IntelliJ
+build/
+.idea
+.gradle
+local.properties
+*.iml
+*.hprof
+.cxx/
+
+# testing
+/coverage
