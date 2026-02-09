@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tabActive: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
   },
   tabText: {
     fontSize: 16,
@@ -341,22 +341,22 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#4CAF50",
+    borderColor: "76B7EF",
     backgroundColor: "#fff",
   },
   roleButtonActive: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
   },
   roleButtonText: {
     fontSize: 14,
-    color: "#4CAF50",
+    color: "#76B7EF",
     fontWeight: "600",
   },
   roleButtonTextActive: {
     color: "#fff",
   },
   button: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: "center",

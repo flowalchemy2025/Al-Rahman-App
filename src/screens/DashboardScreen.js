@@ -272,9 +272,9 @@ const DashboardScreen = ({ navigation, route }) => {
               )}
               height={200}
               chartConfig={{
-                backgroundColor: "#4CAF50",
-                backgroundGradientFrom: "#4CAF50",
-                backgroundGradientTo: "#45a049",
+                backgroundColor: "#76B7EF",
+                backgroundGradientFrom: "#76B7EF",
+                backgroundGradientTo: "#76B7EF",
                 decimalPlaces: 0,
                 color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
                 labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   header: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
     padding: 20,
     paddingTop: 40,
     flexDirection: "row",
@@ -509,13 +509,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#4CAF50",
+    borderColor: "#76B7EF",
   },
   daysButtonActive: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
   },
   daysButtonText: {
-    color: "#4CAF50",
+    color: "#76B7EF",
     fontWeight: "600",
   },
   daysButtonTextActive: {
@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   totalAmount: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#4CAF50",
+    color: "#76B7EF",
     textAlign: "center",
     marginTop: 8,
   },
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   filterButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
     borderRadius: 8,
     width: 48,
     height: 48,
@@ -597,7 +597,7 @@ const styles = StyleSheet.create({
   entryPrice: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#4CAF50",
+    color: "#76B7EF",
     marginVertical: 4,
   },
   entryDate: {
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 20,
     bottom: 20,
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -667,14 +667,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#4CAF50",
+    borderColor: "#76B7EF",
     backgroundColor: "#fff",
   },
   sortOptionActive: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
   },
   sortOptionText: {
-    color: "#4CAF50",
+    color: "#76B7EF",
     fontWeight: "600",
   },
   sortOptionTextActive: {
@@ -688,15 +688,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#4CAF50",
+    borderColor: "#76B7EF",
     marginRight: 8,
     backgroundColor: "#fff",
   },
   userChipActive: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
   },
   userChipText: {
-    color: "#4CAF50",
+    color: "#76B7EF",
     fontWeight: "600",
   },
   modalButtons: {
@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: "center",
@@ -714,7 +714,7 @@ const styles = StyleSheet.create({
   modalButtonSecondary: {
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#4CAF50",
+    borderColor: "#76B7EF",
   },
   modalButtonText: {
     color: "#fff",
@@ -722,7 +722,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   modalButtonTextSecondary: {
-    color: "#4CAF50",
+    color: "#76B7EF",
     fontSize: 16,
     fontWeight: "bold",
   },

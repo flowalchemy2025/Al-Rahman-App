@@ -377,22 +377,22 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#4CAF50",
+    borderColor: "#76B7EF",
     marginRight: 8,
     backgroundColor: "#fff",
   },
   userChipSelected: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
   },
   userChipText: {
-    color: "#4CAF50",
+    color: "#76B7EF",
     fontWeight: "600",
   },
   userChipTextSelected: {
     color: "#fff",
   },
   submitButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#76B7EF",
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: "center",

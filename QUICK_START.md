@@ -4,7 +4,7 @@
 
 ### 1. Install Dependencies
 ```bash
-cd RestaurantPurchaseApp
+cd Al-Rahman-App
 npm install
 ```
 
