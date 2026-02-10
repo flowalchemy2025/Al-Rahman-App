@@ -11,6 +11,9 @@ import {
   Modal,
   ScrollView,
   Image,
+  Dimensions,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import {
   getPurchaseEntries,
@@ -21,7 +24,6 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { LineChart } from "react-native-chart-kit";
-import { Dimensions } from "react-native";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -33,12 +35,26 @@ const DashboardScreen = ({ navigation, route }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortBy, setSortBy] = useState("date");
-  const [workers, setWorkers] = useState([]);
-  const [vendors, setVendors] = useState([]);
-  const [selectedWorker, setSelectedWorker] = useState(null);
-  const [selectedVendor, setSelectedVendor] = useState(null);
+
+  // Analytics
   const [analyticsData, setAnalyticsData] = useState(null);
   const [analyticsDays, setAnalyticsDays] = useState(10);
+
+  // Filter Data
+  const [workers, setWorkers] = useState([]);
+  const [vendors, setVendors] = useState([]);
+
+  // Selected Filter IDs
+  const [selectedWorker, setSelectedWorker] = useState(null);
+  const [selectedVendor, setSelectedVendor] = useState(null);
+
+  // Searchable Dropdown States for Filters
+  const [workerQuery, setWorkerQuery] = useState("");
+  const [vendorQuery, setVendorQuery] = useState("");
+  const [filteredWorkers, setFilteredWorkers] = useState([]);
+  const [filteredVendors, setFilteredVendors] = useState([]);
+  const [showWorkerDropdown, setShowWorkerDropdown] = useState(false);
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -83,10 +99,12 @@ const DashboardScreen = ({ navigation, route }) => {
 
     if (workersResult.success) {
       setWorkers(workersResult.data);
+      setFilteredWorkers(workersResult.data);
     }
 
     if (vendorsResult.success) {
       setVendors(vendorsResult.data);
+      setFilteredVendors(vendorsResult.data);
     }
   };
 
@@ -127,6 +145,51 @@ const DashboardScreen = ({ navigation, route }) => {
       );
       setFilteredEntries(filtered);
     }
+  };
+
+  // Filter Search Logic
+  const handleWorkerSearch = (text) => {
+    setWorkerQuery(text);
+    setSelectedWorker(null); // Reset selection on type
+    if (text) {
+      setFilteredWorkers(
+        workers.filter((w) =>
+          w.full_name.toLowerCase().includes(text.toLowerCase()),
+        ),
+      );
+    } else {
+      setFilteredWorkers(workers);
+    }
+    setShowWorkerDropdown(true);
+  };
+
+  const handleVendorSearch = (text) => {
+    setVendorQuery(text);
+    setSelectedVendor(null); // Reset selection on type
+    if (text) {
+      setFilteredVendors(
+        vendors.filter((v) =>
+          v.full_name.toLowerCase().includes(text.toLowerCase()),
+        ),
+      );
+    } else {
+      setFilteredVendors(vendors);
+    }
+    setShowVendorDropdown(true);
+  };
+
+  const selectWorker = (worker) => {
+    setSelectedWorker(worker.id);
+    setWorkerQuery(worker.full_name);
+    setShowWorkerDropdown(false);
+    Keyboard.dismiss();
+  };
+
+  const selectVendor = (vendor) => {
+    setSelectedVendor(vendor.id);
+    setVendorQuery(vendor.full_name);
+    setShowVendorDropdown(false);
+    Keyboard.dismiss();
   };
 
   const applySorting = () => {
@@ -170,50 +233,63 @@ const DashboardScreen = ({ navigation, route }) => {
     ]);
   };
 
-  const renderEntry = ({ item }) => (
-    <TouchableOpacity
-      style={styles.entryCard}
-      onPress={() => navigation.navigate("EditEntry", { entry: item, user })}
-    >
-      {item.image_url && (
-        <Image source={{ uri: item.image_url }} style={styles.entryImage} />
-      )}
-      <View style={styles.entryContent}>
-        <Text style={styles.entryTitle}>{item.item_name}</Text>
-        <Text style={styles.entryDetail}>Quantity: {item.quantity}</Text>
-        <Text style={styles.entryPrice}>
-          ₹{parseFloat(item.price).toFixed(2)}
-        </Text>
+  const renderEntry = ({ item }) => {
+    // Handle comma-separated images, take the first one
+    const firstImage = item.image_url ? item.image_url.split(",")[0] : null;
 
-        {user?.role === "Super Admin" && (
-          <>
-            <Text style={styles.entryDetail}>
-              Worker: {item.worker?.full_name || "N/A"}
+    return (
+      <TouchableOpacity
+        style={styles.entryCardCompact}
+        onPress={() => navigation.navigate("EditEntry", { entry: item, user })}
+      >
+        <Image
+          source={
+            firstImage
+              ? { uri: firstImage }
+              : { uri: "https://via.placeholder.com/80" }
+          }
+          style={styles.entryImageCompact}
+        />
+
+        <View style={styles.entryContentCompact}>
+          <View style={styles.entryHeaderCompact}>
+            <Text style={styles.entryTitleCompact} numberOfLines={1}>
+              {item.item_name}
             </Text>
-            <Text style={styles.entryDetail}>
-              Vendor: {item.vendor?.full_name || "N/A"}
+            <Text style={styles.entryPriceCompact}>
+              ₹{parseFloat(item.price).toFixed(2)}
             </Text>
-          </>
-        )}
+          </View>
 
-        {user?.role === "Worker" && (
-          <Text style={styles.entryDetail}>
-            Vendor: {item.vendor?.full_name || "N/A"}
-          </Text>
-        )}
+          <Text style={styles.entryDetailCompact}>Qty: {item.quantity}</Text>
 
-        {user?.role === "Vendor" && (
-          <Text style={styles.entryDetail}>
-            Worker: {item.worker?.full_name || "N/A"}
-          </Text>
-        )}
+          <View style={styles.entryMetaCompact}>
+            <Text style={styles.entryDateCompact}>
+              {new Date(item.created_at).toLocaleDateString()}
+            </Text>
 
-        <Text style={styles.entryDate}>
-          {new Date(item.created_at).toLocaleDateString()}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+            {user?.role === "Super Admin" && (
+              <Text style={styles.entryRoleCompact} numberOfLines={1}>
+                {item.worker?.full_name?.split(" ")[0]} →{" "}
+                {item.vendor?.full_name?.split(" ")[0]}
+              </Text>
+            )}
+
+            {user?.role === "Worker" && (
+              <Text style={styles.entryRoleCompact} numberOfLines={1}>
+                To: {item.vendor?.full_name}
+              </Text>
+            )}
+            {user?.role === "Vendor" && (
+              <Text style={styles.entryRoleCompact} numberOfLines={1}>
+                From: {item.worker?.full_name}
+              </Text>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -270,7 +346,7 @@ const DashboardScreen = ({ navigation, route }) => {
                 screenWidth - 40,
                 analyticsData.labels.length * 50,
               )}
-              height={200}
+              height={180}
               chartConfig={{
                 backgroundColor: "#76B7EF",
                 backgroundGradientFrom: "#76B7EF",
@@ -279,6 +355,7 @@ const DashboardScreen = ({ navigation, route }) => {
                 color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
                 labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
                 style: { borderRadius: 16 },
+                propsForDots: { r: "4" },
               }}
               bezier
               style={styles.chart}
@@ -317,6 +394,7 @@ const DashboardScreen = ({ navigation, route }) => {
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={loadData} />
         }
+        contentContainerStyle={{ paddingBottom: 100 }}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Icon name="inbox" size={64} color="#ccc" />
@@ -340,115 +418,149 @@ const DashboardScreen = ({ navigation, route }) => {
         animationType="slide"
         onRequestClose={() => setFilterModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Filter & Sort</Text>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Filter & Sort</Text>
 
-            <Text style={styles.filterLabel}>Sort By:</Text>
-            <View style={styles.sortOptions}>
-              {[
-                { value: "date", label: "Date" },
-                { value: "price_high", label: "Price (High-Low)" },
-                { value: "price_low", label: "Price (Low-High)" },
-                { value: "name", label: "Name" },
-              ].map((option) => (
+              <Text style={styles.filterLabel}>Sort By:</Text>
+              <View style={styles.sortOptions}>
+                {[
+                  { value: "date", label: "Date" },
+                  { value: "price_high", label: "Price (High-Low)" },
+                  { value: "price_low", label: "Price (Low-High)" },
+                  { value: "name", label: "Name" },
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.sortOption,
+                      sortBy === option.value && styles.sortOptionActive,
+                    ]}
+                    onPress={() => setSortBy(option.value)}
+                  >
+                    <Text
+                      style={[
+                        styles.sortOptionText,
+                        sortBy === option.value && styles.sortOptionTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {user?.role === "Super Admin" && (
+                <>
+                  <Text style={styles.filterLabel}>Filter by Worker:</Text>
+                  <View style={styles.dropdownContainer}>
+                    <TextInput
+                      style={styles.dropdownInput}
+                      placeholder="Search Worker..."
+                      value={workerQuery}
+                      onChangeText={handleWorkerSearch}
+                      onFocus={() => setShowWorkerDropdown(true)}
+                    />
+                    {showWorkerDropdown && (
+                      <View style={styles.dropdownList}>
+                        <TouchableOpacity
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setSelectedWorker(null);
+                            setWorkerQuery("");
+                            setShowWorkerDropdown(false);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownText,
+                              { fontStyle: "italic" },
+                            ]}
+                          >
+                            All Workers
+                          </Text>
+                        </TouchableOpacity>
+                        {filteredWorkers.slice(0, 5).map((item) => (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={styles.dropdownItem}
+                            onPress={() => selectWorker(item)}
+                          >
+                            <Text style={styles.dropdownText}>
+                              {item.full_name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+
+                  <Text style={styles.filterLabel}>Filter by Vendor:</Text>
+                  <View style={[styles.dropdownContainer, { zIndex: -1 }]}>
+                    <TextInput
+                      style={styles.dropdownInput}
+                      placeholder="Search Vendor..."
+                      value={vendorQuery}
+                      onChangeText={handleVendorSearch}
+                      onFocus={() => setShowVendorDropdown(true)}
+                    />
+                    {showVendorDropdown && (
+                      <View style={styles.dropdownList}>
+                        <TouchableOpacity
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setSelectedVendor(null);
+                            setVendorQuery("");
+                            setShowVendorDropdown(false);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownText,
+                              { fontStyle: "italic" },
+                            ]}
+                          >
+                            All Vendors
+                          </Text>
+                        </TouchableOpacity>
+                        {filteredVendors.slice(0, 5).map((item) => (
+                          <TouchableOpacity
+                            key={item.id}
+                            style={styles.dropdownItem}
+                            onPress={() => selectVendor(item)}
+                          >
+                            <Text style={styles.dropdownText}>
+                              {item.full_name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </>
+              )}
+
+              <View style={styles.modalButtons}>
                 <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.sortOption,
-                    sortBy === option.value && styles.sortOptionActive,
-                  ]}
-                  onPress={() => setSortBy(option.value)}
+                  style={styles.modalButton}
+                  onPress={() => {
+                    applySorting();
+                    applyFilters();
+                  }}
                 >
-                  <Text
-                    style={[
-                      styles.sortOptionText,
-                      sortBy === option.value && styles.sortOptionTextActive,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
+                  <Text style={styles.modalButtonText}>Apply</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-
-            {user?.role === "Super Admin" && (
-              <>
-                <Text style={styles.filterLabel}>Filter by Worker:</Text>
-                <ScrollView horizontal style={styles.userScroll}>
-                  <TouchableOpacity
-                    style={[
-                      styles.userChip,
-                      !selectedWorker && styles.userChipActive,
-                    ]}
-                    onPress={() => setSelectedWorker(null)}
-                  >
-                    <Text style={styles.userChipText}>All</Text>
-                  </TouchableOpacity>
-                  {workers.map((worker) => (
-                    <TouchableOpacity
-                      key={worker.id}
-                      style={[
-                        styles.userChip,
-                        selectedWorker === worker.id && styles.userChipActive,
-                      ]}
-                      onPress={() => setSelectedWorker(worker.id)}
-                    >
-                      <Text style={styles.userChipText}>
-                        {worker.full_name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                <Text style={styles.filterLabel}>Filter by Vendor:</Text>
-                <ScrollView horizontal style={styles.userScroll}>
-                  <TouchableOpacity
-                    style={[
-                      styles.userChip,
-                      !selectedVendor && styles.userChipActive,
-                    ]}
-                    onPress={() => setSelectedVendor(null)}
-                  >
-                    <Text style={styles.userChipText}>All</Text>
-                  </TouchableOpacity>
-                  {vendors.map((vendor) => (
-                    <TouchableOpacity
-                      key={vendor.id}
-                      style={[
-                        styles.userChip,
-                        selectedVendor === vendor.id && styles.userChipActive,
-                      ]}
-                      onPress={() => setSelectedVendor(vendor.id)}
-                    >
-                      <Text style={styles.userChipText}>
-                        {vendor.full_name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </>
-            )}
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalButton}
-                onPress={() => {
-                  applySorting();
-                  applyFilters();
-                }}
-              >
-                <Text style={styles.modalButtonText}>Apply</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSecondary]}
-                onPress={() => setFilterModalVisible(false)}
-              >
-                <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonSecondary]}
+                  onPress={() => setFilterModalVisible(false)}
+                >
+                  <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );
@@ -563,48 +675,70 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  entryCard: {
+  // Compact Card Styles
+  entryCardCompact: {
     backgroundColor: "#fff",
     marginHorizontal: 16,
     marginBottom: 12,
     borderRadius: 10,
+    flexDirection: "row", // Horizontal layout
+    height: 100, // Fixed reduced height
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  entryImage: {
-    width: "100%",
-    height: 150,
-    backgroundColor: "#f0f0f0",
+  entryImageCompact: {
+    width: 100,
+    height: "100%",
+    backgroundColor: "#eee",
   },
-  entryContent: {
-    padding: 12,
+  entryContentCompact: {
+    flex: 1,
+    padding: 10,
+    justifyContent: "space-between",
   },
-  entryTitle: {
-    fontSize: 18,
+  entryHeaderCompact: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  entryTitleCompact: {
+    fontSize: 16,
     fontWeight: "bold",
     color: "#333",
-    marginBottom: 4,
+    flex: 1,
+    marginRight: 8,
   },
-  entryDetail: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 2,
-  },
-  entryPrice: {
-    fontSize: 20,
+  entryPriceCompact: {
+    fontSize: 16,
     fontWeight: "bold",
     color: "#76B7EF",
-    marginVertical: 4,
   },
-  entryDate: {
-    fontSize: 12,
-    color: "#999",
+  entryDetailCompact: {
+    fontSize: 13,
+    color: "#666",
+  },
+  entryMetaCompact: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 4,
   },
+  entryDateCompact: {
+    fontSize: 11,
+    color: "#999",
+  },
+  entryRoleCompact: {
+    fontSize: 11,
+    color: "#76B7EF",
+    fontWeight: "500",
+    maxWidth: 120,
+  },
+
+  // Empty State
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
@@ -642,7 +776,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    maxHeight: "80%",
+    maxHeight: "90%",
   },
   modalTitle: {
     fontSize: 20,
@@ -680,29 +814,48 @@ const styles = StyleSheet.create({
   sortOptionTextActive: {
     color: "#fff",
   },
-  userScroll: {
-    marginBottom: 8,
+
+  // New Dropdown Styles for Modal
+  dropdownContainer: {
+    position: "relative",
+    zIndex: 10, // Ensure it floats above
   },
-  userChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+  dropdownInput: {
     borderWidth: 1,
-    borderColor: "#76B7EF",
-    marginRight: 8,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: "#f9f9f9",
+  },
+  dropdownList: {
+    position: "absolute",
+    top: 50,
+    left: 0,
+    right: 0,
     backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    maxHeight: 150,
+    elevation: 5,
+    zIndex: 100,
   },
-  userChipActive: {
-    backgroundColor: "#76B7EF",
+  dropdownItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
   },
-  userChipText: {
-    color: "#76B7EF",
-    fontWeight: "600",
+  dropdownText: {
+    fontSize: 16,
+    color: "#333",
   },
+
   modalButtons: {
     flexDirection: "row",
     marginTop: 24,
     gap: 12,
+    zIndex: -1,
   },
   modalButton: {
     flex: 1,

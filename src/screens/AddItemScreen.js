@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  FlatList,
+  Keyboard,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { addPurchaseEntry, getAllUsers } from "../services/supabase";
@@ -18,12 +20,20 @@ import { MaterialIcons } from "@expo/vector-icons";
 const AddItemScreen = ({ navigation, route }) => {
   const { user } = route.params;
   const [loading, setLoading] = useState(false);
-  const [imageUri, setImageUri] = useState(null);
+
+  // Changed from single imageUri to array of images
+  const [selectedImages, setSelectedImages] = useState([]);
+
   const [itemName, setItemName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
+
+  // Search Dropdown States
   const [selectedUser, setSelectedUser] = useState(null);
   const [availableUsers, setAvailableUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [query, setQuery] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -45,32 +55,43 @@ const AddItemScreen = ({ navigation, route }) => {
   };
 
   const loadUsers = async () => {
-    // Workers select vendors, Vendors select workers
     const roleToLoad = user.role === "Worker" ? "Vendor" : "Worker";
     const result = await getAllUsers(roleToLoad);
-
     if (result.success) {
       setAvailableUsers(result.data);
+      setFilteredUsers(result.data);
     }
+  };
+
+  const handleSearch = (text) => {
+    setQuery(text);
+    setSelectedUser(null);
+    if (text) {
+      const filtered = availableUsers.filter((u) =>
+        u.full_name.toLowerCase().includes(text.toLowerCase()),
+      );
+      setFilteredUsers(filtered);
+    } else {
+      setFilteredUsers(availableUsers);
+    }
+    setShowDropdown(true);
+  };
+
+  const handleSelectUser = (selected) => {
+    setQuery(selected.full_name);
+    setSelectedUser(selected.id);
+    setShowDropdown(false);
+    Keyboard.dismiss();
   };
 
   const handleImagePicker = () => {
     Alert.alert(
-      "Select Image",
+      "Add Images",
       "Choose an option",
       [
-        {
-          text: "Take Photo",
-          onPress: () => openCamera(),
-        },
-        {
-          text: "Choose from Library",
-          onPress: () => openLibrary(),
-        },
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        { text: "Take Photo", onPress: openCamera },
+        { text: "Select Multiple from Library", onPress: openLibrary },
+        { text: "Cancel", style: "cancel" },
       ],
       { cancelable: true },
     );
@@ -80,17 +101,15 @@ const AddItemScreen = ({ navigation, route }) => {
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false, // Disabled native cropper for better full-image results
         quality: 0.8,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
+        setSelectedImages([...selectedImages, result.assets[0].uri]);
       }
     } catch (error) {
       Alert.alert("Error", "Failed to open camera");
-      console.error(error);
     }
   };
 
@@ -98,42 +117,40 @@ const AddItemScreen = ({ navigation, route }) => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsMultipleSelection: true, // Enable multiple selection
+        selectionLimit: 5, // Optional: Limit max images
+        allowsEditing: false, // Disabled native cropper
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
+      if (!result.canceled && result.assets) {
+        const newUris = result.assets.map((asset) => asset.uri);
+        setSelectedImages([...selectedImages, ...newUris]);
       }
     } catch (error) {
       Alert.alert("Error", "Failed to open image library");
-      console.error(error);
     }
   };
 
+  const removeImage = (indexToRemove) => {
+    setSelectedImages(
+      selectedImages.filter((_, index) => index !== indexToRemove),
+    );
+  };
+
   const handleSubmit = async () => {
-    // Validation
-    if (!imageUri) {
-      Alert.alert("Error", "Please add an image");
+    if (selectedImages.length === 0) {
+      Alert.alert("Error", "Please add at least one image");
       return;
     }
-    if (!itemName.trim()) {
-      Alert.alert("Error", "Please enter item name");
-      return;
-    }
-    if (!quantity.trim()) {
-      Alert.alert("Error", "Please enter quantity");
-      return;
-    }
-    if (!price.trim() || isNaN(parseFloat(price))) {
-      Alert.alert("Error", "Please enter a valid price");
-      return;
-    }
+    if (!itemName.trim()) return Alert.alert("Error", "Please enter item name");
+    if (!quantity.trim()) return Alert.alert("Error", "Please enter quantity");
+    if (!price.trim() || isNaN(parseFloat(price)))
+      return Alert.alert("Error", "Please enter a valid price");
     if (!selectedUser) {
       Alert.alert(
         "Error",
-        `Please select a ${user.role === "Worker" ? "vendor" : "worker"}`,
+        `Please select a valid ${user.role === "Worker" ? "vendor" : "worker"}`,
       );
       return;
     }
@@ -141,24 +158,31 @@ const AddItemScreen = ({ navigation, route }) => {
     setLoading(true);
 
     try {
-      // Upload image first
-      const imageResult = await uploadImage(imageUri);
+      // 1. Upload All Images in Parallel
+      const uploadPromises = selectedImages.map((uri) => uploadImage(uri));
+      const results = await Promise.all(uploadPromises);
 
-      if (!imageResult.success) {
-        throw new Error(imageResult.error);
-      }
+      // 2. Check for failures and collect URLs
+      const uploadedUrls = [];
+      const uploadedFilenames = [];
 
-      // Prepare entry data
+      results.forEach((res) => {
+        if (!res.success)
+          throw new Error(res.error || "Failed to upload one of the images");
+        uploadedUrls.push(res.url);
+        uploadedFilenames.push(res.filename);
+      });
+
+      // 3. Prepare entry data (Join URLs with comma)
       const entryData = {
         item_name: itemName.trim(),
         quantity: quantity.trim(),
         price: parseFloat(price),
-        image_url: imageResult.url,
-        image_filename: imageResult.filename,
+        image_url: uploadedUrls.join(","), // Storing multiple URLs as comma-separated string
+        image_filename: uploadedFilenames.join(","),
         created_at: new Date().toISOString(),
       };
 
-      // Set worker and vendor based on user role
       if (user.role === "Worker") {
         entryData.worker_id = user.id;
         entryData.vendor_id = selectedUser;
@@ -167,17 +191,13 @@ const AddItemScreen = ({ navigation, route }) => {
         entryData.worker_id = selectedUser;
       }
 
-      // Save to Supabase
       const result = await addPurchaseEntry(entryData);
 
       setLoading(false);
 
       if (result.success) {
         Alert.alert("Success", "Item added successfully!", [
-          {
-            text: "OK",
-            onPress: () => navigation.goBack(),
-          },
+          { text: "OK", onPress: () => navigation.goBack() },
         ]);
       } else {
         throw new Error(result.error);
@@ -188,8 +208,20 @@ const AddItemScreen = ({ navigation, route }) => {
     }
   };
 
+  const renderImageItem = ({ item, index }) => (
+    <View style={styles.thumbnailContainer}>
+      <Image source={{ uri: item }} style={styles.thumbnail} />
+      <TouchableOpacity
+        style={styles.removeBtn}
+        onPress={() => removeImage(index)}
+      >
+        <MaterialIcons name="close" size={16} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <MaterialIcons name="arrow-back" size={24} color="#333" />
@@ -199,24 +231,40 @@ const AddItemScreen = ({ navigation, route }) => {
       </View>
 
       <View style={styles.content}>
-        {/* Image Section */}
-        <TouchableOpacity
-          style={styles.imageContainer}
-          onPress={handleImagePicker}
-        >
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.image} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <MaterialIcons name="add-a-photo" size={48} color="#999" />
-              <Text style={styles.imagePlaceholderText}>
-                Take Photo or Upload Image
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        {/* New Multi-Image Section */}
+        <View style={styles.imageSection}>
+          <Text style={styles.label}>Images ({selectedImages.length})</Text>
 
-        {/* Item Name */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.imageList}
+          >
+            {/* Add Button */}
+            <TouchableOpacity
+              style={styles.addMoreBtn}
+              onPress={handleImagePicker}
+            >
+              <MaterialIcons name="add-a-photo" size={32} color="#76B7EF" />
+              <Text style={styles.addMoreText}>Add</Text>
+            </TouchableOpacity>
+
+            {/* Selected Images List */}
+            {selectedImages.map((uri, index) => (
+              <View key={index} style={styles.thumbnailContainer}>
+                <Image source={{ uri: uri }} style={styles.thumbnail} />
+                <TouchableOpacity
+                  style={styles.removeBtn}
+                  onPress={() => removeImage(index)}
+                >
+                  <MaterialIcons name="close" size={14} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Inputs */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Item Name *</Text>
           <TextInput
@@ -227,18 +275,16 @@ const AddItemScreen = ({ navigation, route }) => {
           />
         </View>
 
-        {/* Quantity */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Quantity *</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g., 5 kg, 10 pieces"
+            placeholder="e.g., 5 kg"
             value={quantity}
             onChangeText={setQuantity}
           />
         </View>
 
-        {/* Price */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Price (₹) *</Text>
           <TextInput
@@ -250,40 +296,49 @@ const AddItemScreen = ({ navigation, route }) => {
           />
         </View>
 
-        {/* User Selection */}
-        <View style={styles.inputContainer}>
+        {/* Dropdown User Select */}
+        <View style={[styles.inputContainer, { zIndex: 1000 }]}>
           <Text style={styles.label}>
             Select {user.role === "Worker" ? "Vendor" : "Worker"} *
           </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.userScroll}
-          >
-            {availableUsers.map((availableUser) => (
-              <TouchableOpacity
-                key={availableUser.id}
-                style={[
-                  styles.userChip,
-                  selectedUser === availableUser.id && styles.userChipSelected,
-                ]}
-                onPress={() => setSelectedUser(availableUser.id)}
-              >
-                <Text
-                  style={[
-                    styles.userChipText,
-                    selectedUser === availableUser.id &&
-                      styles.userChipTextSelected,
-                  ]}
-                >
-                  {availableUser.full_name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder={`Search ${user.role === "Worker" ? "vendor" : "worker"}...`}
+              value={query}
+              onChangeText={handleSearch}
+              onFocus={() => setShowDropdown(true)}
+            />
+            <MaterialIcons
+              name={showDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+              size={24}
+              color="#999"
+              style={styles.searchIcon}
+            />
+          </View>
+
+          {showDropdown && (
+            <View style={styles.dropdownList}>
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.dropdownItem}
+                    onPress={() => handleSelectUser(item)}
+                  >
+                    <Text style={styles.dropdownText}>{item.full_name}</Text>
+                    <Text style={styles.dropdownSubText}>{item.role}</Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.dropdownItem}>
+                  <Text style={styles.dropdownText}>No users found</Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
 
-        {/* Submit Button */}
         <TouchableOpacity
           style={styles.submitButton}
           onPress={handleSubmit}
@@ -322,35 +377,57 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingBottom: 100,
   },
-  imageContainer: {
-    width: "100%",
-    height: 250,
-    borderRadius: 10,
-    overflow: "hidden",
+  // New Styles for Image List
+  imageSection: {
     marginBottom: 20,
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  image: {
-    width: "100%",
-    height: "100%",
+  imageList: {
+    flexDirection: "row",
+    paddingVertical: 10,
   },
-  imagePlaceholder: {
-    flex: 1,
+  addMoreBtn: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#76B7EF",
+    borderStyle: "dashed",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
+    marginRight: 12,
+    backgroundColor: "#fff",
   },
-  imagePlaceholderText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#999",
+  addMoreText: {
+    color: "#76B7EF",
+    fontWeight: "600",
+    marginTop: 4,
   },
+  thumbnailContainer: {
+    position: "relative",
+    marginRight: 12,
+  },
+  thumbnail: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: "#ddd",
+  },
+  removeBtn: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "#ff4444",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  // Existing Styles
   inputContainer: {
     marginBottom: 20,
   },
@@ -369,27 +446,38 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
   },
-  userScroll: {
-    marginTop: 8,
+  searchContainer: {
+    position: "relative",
+    justifyContent: "center",
   },
-  userChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#76B7EF",
-    marginRight: 8,
+  searchIcon: {
+    position: "absolute",
+    right: 12,
+  },
+  dropdownList: {
     backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    maxHeight: 200,
+    elevation: 5,
+    marginTop: -4,
   },
-  userChipSelected: {
-    backgroundColor: "#76B7EF",
+  dropdownItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
   },
-  userChipText: {
-    color: "#76B7EF",
-    fontWeight: "600",
+  dropdownText: {
+    fontSize: 16,
+    color: "#333",
   },
-  userChipTextSelected: {
-    color: "#fff",
+  dropdownSubText: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 2,
   },
   submitButton: {
     backgroundColor: "#76B7EF",

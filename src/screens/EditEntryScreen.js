@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,15 +18,34 @@ import { MaterialIcons } from "@expo/vector-icons";
 const EditEntryScreen = ({ navigation, route }) => {
   const { entry, user } = route.params;
   const [loading, setLoading] = useState(false);
-  const [imageUri, setImageUri] = useState(entry.image_url);
-  const [imageChanged, setImageChanged] = useState(false);
+
+  // State for images
+  const [images, setImages] = useState([]);
+
   const [itemName, setItemName] = useState(entry.item_name);
   const [quantity, setQuantity] = useState(entry.quantity);
   const [price, setPrice] = useState(entry.price.toString());
 
+  useEffect(() => {
+    // Parse existing images
+    if (entry.image_url) {
+      const urls = entry.image_url.split(",");
+      const filenames = entry.image_filename
+        ? entry.image_filename.split(",")
+        : [];
+
+      const initialImages = urls.map((url, index) => ({
+        uri: url,
+        filename: filenames[index] || null,
+        isNew: false,
+      }));
+      setImages(initialImages);
+    }
+  }, []);
+
   const handleImagePicker = () => {
     Alert.alert(
-      "Change Image",
+      "Add Images",
       "Choose an option",
       [
         {
@@ -50,14 +69,12 @@ const EditEntryScreen = ({ navigation, route }) => {
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false, // Disabled crop
         quality: 0.8,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
-        setImageChanged(true);
+        setImages([...images, { uri: result.assets[0].uri, isNew: true }]);
       }
     } catch (error) {
       Alert.alert("Error", "Failed to open camera");
@@ -69,14 +86,17 @@ const EditEntryScreen = ({ navigation, route }) => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsMultipleSelection: true, // Multiple Select
+        allowsEditing: false,
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
-        setImageChanged(true);
+      if (!result.canceled && result.assets) {
+        const newImages = result.assets.map((asset) => ({
+          uri: asset.uri,
+          isNew: true,
+        }));
+        setImages([...images, ...newImages]);
       }
     } catch (error) {
       Alert.alert("Error", "Failed to open image library");
@@ -84,10 +104,14 @@ const EditEntryScreen = ({ navigation, route }) => {
     }
   };
 
+  const removeImage = (indexToRemove) => {
+    setImages(images.filter((_, index) => index !== indexToRemove));
+  };
+
   const handleUpdate = async () => {
     // Validation
-    if (!imageUri) {
-      Alert.alert("Error", "Please add an image");
+    if (images.length === 0) {
+      Alert.alert("Error", "Please add at least one image");
       return;
     }
     if (!itemName.trim()) {
@@ -106,34 +130,36 @@ const EditEntryScreen = ({ navigation, route }) => {
     setLoading(true);
 
     try {
-      let updatedImageUrl = entry.image_url;
-      let updatedImageFilename = entry.image_filename;
+      const finalUrls = [];
+      const finalFilenames = [];
 
-      // If image was changed, upload new image
-      if (imageChanged) {
-        // Delete old image
-        if (entry.image_filename) {
-          await deleteImage(entry.image_filename);
+      // Process images
+      for (const img of images) {
+        if (img.isNew) {
+          // Upload new image
+          const imageResult = await uploadImage(img.uri);
+          if (!imageResult.success)
+            throw new Error("Failed to upload new image");
+
+          finalUrls.push(imageResult.url);
+          finalFilenames.push(imageResult.filename);
+        } else {
+          // Keep existing image
+          finalUrls.push(img.uri);
+          if (img.filename) finalFilenames.push(img.filename);
         }
-
-        // Upload new image
-        const imageResult = await uploadImage(imageUri);
-
-        if (!imageResult.success) {
-          throw new Error(imageResult.error);
-        }
-
-        updatedImageUrl = imageResult.url;
-        updatedImageFilename = imageResult.filename;
       }
+
+      // Note: We are not deleting removed images from the server to prevent accidental data loss
+      // if logic fails. They will just become orphaned, which is safer.
 
       // Prepare update data
       const updateData = {
         item_name: itemName.trim(),
         quantity: quantity.trim(),
         price: parseFloat(price),
-        image_url: updatedImageUrl,
-        image_filename: updatedImageFilename,
+        image_url: finalUrls.join(","),
+        image_filename: finalFilenames.join(","),
         updated_at: new Date().toISOString(),
       };
 
@@ -174,12 +200,9 @@ const EditEntryScreen = ({ navigation, route }) => {
             setLoading(true);
 
             try {
-              // Delete image from server
-              if (entry.image_filename) {
-                await deleteImage(entry.image_filename);
-              }
+              // Delete entries from Supabase
+              // (Optional: Delete images from server loop here using entry.image_filename)
 
-              // Delete entry from Supabase
               const result = await deletePurchaseEntry(entry.id);
 
               setLoading(false);
@@ -217,28 +240,42 @@ const EditEntryScreen = ({ navigation, route }) => {
       </View>
 
       <View style={styles.content}>
-        {/* Image Section */}
-        <TouchableOpacity
-          style={styles.imageContainer}
-          onPress={handleImagePicker}
-        >
-          {imageUri ? (
-            <>
-              <Image source={{ uri: imageUri }} style={styles.image} />
-              <View style={styles.imageOverlay}>
-                <MaterialIcons name="edit" size={32} color="#fff" />
-                <Text style={styles.imageOverlayText}>Change Image</Text>
+        {/* Multi-Image Section */}
+        <View style={styles.imageSection}>
+          <Text style={styles.label}>Images ({images.length})</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.imageList}
+          >
+            {/* Add Button */}
+            <TouchableOpacity
+              style={styles.addMoreBtn}
+              onPress={handleImagePicker}
+            >
+              <MaterialIcons name="add-a-photo" size={32} color="#76B7EF" />
+              <Text style={styles.addMoreText}>Add</Text>
+            </TouchableOpacity>
+
+            {/* Image List */}
+            {images.map((img, index) => (
+              <View key={index} style={styles.thumbnailContainer}>
+                <Image source={{ uri: img.uri }} style={styles.thumbnail} />
+                <TouchableOpacity
+                  style={styles.removeBtn}
+                  onPress={() => removeImage(index)}
+                >
+                  <MaterialIcons name="close" size={14} color="#fff" />
+                </TouchableOpacity>
+                {img.isNew && (
+                  <View style={styles.newBadge}>
+                    <Text style={styles.newBadgeText}>New</Text>
+                  </View>
+                )}
               </View>
-            </>
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <MaterialIcons name="add-a-photo" size={48} color="#999" />
-              <Text style={styles.imagePlaceholderText}>
-                Take Photo or Upload Image
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* Item Name */}
         <View style={styles.inputContainer}>
@@ -331,49 +368,74 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingBottom: 50,
   },
-  imageContainer: {
-    width: "100%",
-    height: 250,
-    borderRadius: 10,
-    overflow: "hidden",
+  // Image List Styles
+  imageSection: {
     marginBottom: 20,
+  },
+  imageList: {
+    flexDirection: "row",
+    paddingVertical: 10,
+  },
+  addMoreBtn: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#76B7EF",
+    borderStyle: "dashed",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
     backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  image: {
-    width: "100%",
-    height: "100%",
+  addMoreText: {
+    color: "#76B7EF",
+    fontWeight: "600",
+    marginTop: 4,
   },
-  imageOverlay: {
+  thumbnailContainer: {
+    position: "relative",
+    marginRight: 12,
+  },
+  thumbnail: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: "#ddd",
+  },
+  removeBtn: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    backgroundColor: "#ff4444",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+    zIndex: 2,
+  },
+  newBadge: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    padding: 12,
+    backgroundColor: "rgba(118, 183, 239, 0.9)",
+    paddingVertical: 2,
     alignItems: "center",
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
   },
-  imageOverlayText: {
+  newBadgeText: {
     color: "#fff",
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 10,
+    fontWeight: "bold",
   },
-  imagePlaceholder: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
-  },
-  imagePlaceholderText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: "#999",
-  },
+  // Input Styles
   inputContainer: {
     marginBottom: 20,
   },
