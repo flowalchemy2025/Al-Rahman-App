@@ -55,7 +55,7 @@ export const signUp = async (
   }
 };
 
-export const signIn = async (usernameOrMobile, password, role) => {
+export const signIn = async (usernameOrMobile, password) => {
   try {
     // First, find the user by username or mobile number
     const { data: userData, error: userError } = await supabase
@@ -64,11 +64,10 @@ export const signIn = async (usernameOrMobile, password, role) => {
       .or(
         `username.eq.${usernameOrMobile},mobile_number.eq.${usernameOrMobile}`,
       )
-      .eq("role", role)
       .single();
 
     if (userError || !userData) {
-      throw new Error("Invalid credentials or role");
+      throw new Error("Invalid credentials");
     }
 
     // Sign in with the constructed email

@@ -21,7 +21,6 @@ const LoginScreen = ({ navigation }) => {
   // Login fields
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [loginRole, setLoginRole] = useState("Worker");
 
   // Register fields
   const [fullName, setFullName] = useState("");
@@ -30,7 +29,7 @@ const LoginScreen = ({ navigation }) => {
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerRole, setRegisterRole] = useState("Worker");
 
-  const roles = ["Super Admin", "Worker", "Vendor"];
+  const roles = ["Worker", "Vendor"];
 
   const handleLogin = async () => {
     if (!loginUsername || !loginPassword) {
@@ -39,7 +38,7 @@ const LoginScreen = ({ navigation }) => {
     }
 
     setLoading(true);
-    const result = await signIn(loginUsername, loginPassword, loginRole);
+    const result = await signIn(loginUsername, loginPassword);
     setLoading(false);
 
     if (result.success) {
@@ -56,6 +55,16 @@ const LoginScreen = ({ navigation }) => {
       return;
     }
 
+    if (registerRole === "Vendor" && !shopName) {
+      Alert.alert("Error", "Please enter your shop name");
+      return;
+    }
+
+    let finalFullName = fullName.trim();
+    if  (registerRole === "Vendor") {
+      finalFullName = `${fullName.trim()} (${shopName.trim()})`;
+    }
+
     if (mobileNumber.length !== 10) {
       Alert.alert("Error", "Please enter a valid 10-digit mobile number");
       return;
@@ -63,7 +72,7 @@ const LoginScreen = ({ navigation }) => {
 
     setLoading(true);
     const result = await signUp(
-      fullName,
+      finalFullName,
       mobileNumber,
       registerUsername,
       registerPassword,
@@ -84,7 +93,7 @@ const LoginScreen = ({ navigation }) => {
       Alert.alert("Registration Failed", result.error);
     }
   };
-
+  const [shopName, setShopName] = useState("");
   const RoleSelector = ({ selectedRole, onSelect }) => (
     <View style={styles.roleContainer}>
       <Text style={styles.label}>Select Role:</Text>
@@ -167,8 +176,6 @@ const LoginScreen = ({ navigation }) => {
               />
             </View>
 
-            <RoleSelector selectedRole={loginRole} onSelect={setLoginRole} />
-
             <TouchableOpacity
               style={styles.button}
               onPress={handleLogin}
@@ -184,6 +191,11 @@ const LoginScreen = ({ navigation }) => {
         ) : (
           // Register Form
           <View style={styles.form}>
+            <RoleSelector
+              selectedRole={registerRole}
+              onSelect={setRegisterRole}
+            />
+
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Full Name</Text>
               <TextInput
@@ -193,6 +205,17 @@ const LoginScreen = ({ navigation }) => {
                 onChangeText={setFullName}
               />
             </View>
+
+            {registerRole === "Vendor" && (
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Shop Name</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter shop name"
+                value={shopName}
+                onChangeText={setShopName}
+              />
+            </View>)}
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Mobile Number</Text>
@@ -227,11 +250,6 @@ const LoginScreen = ({ navigation }) => {
                 secureTextEntry
               />
             </View>
-
-            <RoleSelector
-              selectedRole={registerRole}
-              onSelect={setRegisterRole}
-            />
 
             <TouchableOpacity
               style={styles.button}
