@@ -1,7 +1,7 @@
 import axios from "axios";
 import * as FileSystem from "expo-file-system";
 
-const IMAGE_API_BASE_URL = "https://kareemsnagpur.com/dish-images";
+const IMAGE_API_BASE_URL = "https://kareemsnagpur.com/images";
 
 export const uploadImage = async (imageUri) => {
   try {
