@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -29,26 +29,26 @@ const screenWidth = Dimensions.get("window").width;
 
 const DashboardScreen = ({ navigation, route }) => {
   const [user, setUser] = useState(route.params?.user || null);
+
+  // Tabs State
+  const [activeTab, setActiveTab] = useState(0); // 0: Left Tab, 1: Right Tab
+
+  // Data States
   const [entries, setEntries] = useState([]);
   const [filteredEntries, setFilteredEntries] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState(null);
+
+  // Filter States
   const [searchQuery, setSearchQuery] = useState("");
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortBy, setSortBy] = useState("date");
 
-  // Analytics
-  const [analyticsData, setAnalyticsData] = useState(null);
-  const [analyticsDays, setAnalyticsDays] = useState(10);
-
-  // Filter Data
+  // Filter Logic Data
   const [workers, setWorkers] = useState([]);
   const [vendors, setVendors] = useState([]);
-
-  // Selected Filter IDs
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [selectedVendor, setSelectedVendor] = useState(null);
-
-  // Searchable Dropdown States for Filters
   const [workerQuery, setWorkerQuery] = useState("");
   const [vendorQuery, setVendorQuery] = useState("");
   const [filteredWorkers, setFilteredWorkers] = useState([]);
@@ -58,170 +58,108 @@ const DashboardScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     loadData();
+    loadUsers();
     if (user?.role === "Super Admin") {
-      loadUsers();
-      loadAnalytics(analyticsDays);
+      loadAnalytics();
     }
   }, [user]);
+
+  // Effect to filter entries when switching tabs
+  useEffect(() => {
+    filterByTab();
+  }, [activeTab, entries]);
 
   const loadData = async () => {
     setLoading(true);
     const filters = {};
 
-    if (user?.role === "Worker") {
-      filters.workerId = user.id;
-    } else if (user?.role === "Vendor") {
-      filters.vendorId = user.id;
-    }
-
-    if (selectedWorker) {
-      filters.workerId = selectedWorker;
-    }
-
-    if (selectedVendor) {
-      filters.vendorId = selectedVendor;
-    }
+    // Base filters from Supabase
+    if (user?.role === "Worker") filters.workerId = user.id;
+    if (user?.role === "Vendor") filters.vendorId = user.id;
+    if (selectedWorker) filters.workerId = selectedWorker;
+    if (selectedVendor) filters.vendorId = selectedVendor;
 
     const result = await getPurchaseEntries(filters);
     setLoading(false);
 
     if (result.success) {
       setEntries(result.data);
-      setFilteredEntries(result.data);
     } else {
       Alert.alert("Error", result.error);
     }
   };
 
   const loadUsers = async () => {
-    const workersResult = await getAllUsers("Worker");
-    const vendorsResult = await getAllUsers("Vendor");
-
-    if (workersResult.success) {
-      setWorkers(workersResult.data);
-      setFilteredWorkers(workersResult.data);
+    const wRes = await getAllUsers("Worker");
+    const vRes = await getAllUsers("Vendor");
+    if (wRes.success) {
+      setWorkers(wRes.data);
+      setFilteredWorkers(wRes.data);
     }
-
-    if (vendorsResult.success) {
-      setVendors(vendorsResult.data);
-      setFilteredVendors(vendorsResult.data);
+    if (vRes.success) {
+      setVendors(vRes.data);
+      setFilteredVendors(vRes.data);
     }
   };
 
-  const loadAnalytics = async (days) => {
-    const result = await getAnalyticsData(days);
-    if (result.success) {
-      processAnalyticsData(result.data, days);
-    }
+  const loadAnalytics = async () => {
+    const result = await getAnalyticsData(10); // Last 10 days
+    if (result.success) processAnalyticsData(result.data);
   };
 
-  const processAnalyticsData = (data, days) => {
+  const processAnalyticsData = (data) => {
     const dayLabels = [];
     const amounts = [];
-
-    for (let i = days - 1; i >= 0; i--) {
+    for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split("T")[0];
       dayLabels.push(date.getDate().toString());
-
       const dayTotal = data
         .filter((entry) => entry.created_at.split("T")[0] === dateStr)
         .reduce((sum, entry) => sum + parseFloat(entry.price || 0), 0);
-
       amounts.push(dayTotal);
     }
-
-    setAnalyticsData({ labels: dayLabels, data: amounts });
+    setAnalyticsData({ labels: dayLabels, data: amounts, raw: data });
   };
 
-  const handleSearch = (text) => {
-    setSearchQuery(text);
-    if (text === "") {
-      setFilteredEntries(entries);
-    } else {
-      const filtered = entries.filter((entry) =>
-        entry.item_name.toLowerCase().includes(text.toLowerCase()),
+  const filterByTab = () => {
+    let result = [...entries];
+
+    // ROLE BASED TAB FILTERING
+    if (user?.role !== "Super Admin") {
+      if (activeTab === 0) {
+        // "My Items" -> Created By Me
+        result = result.filter((e) => e.created_by === user.id);
+      } else {
+        // "Worker/Vendor Items" -> Created By Others
+        // If created_by is missing (old data), assume it belongs to the 'other' category if I didn't create it
+        result = result.filter((e) => e.created_by !== user.id);
+      }
+    }
+    // Note: Admin sees all entries in Tab 1 (Items Purchase). Tab 0 is Analytics (Not a list).
+
+    // Apply Search
+    if (searchQuery) {
+      result = result.filter((e) =>
+        e.item_name.toLowerCase().includes(searchQuery.toLowerCase()),
       );
-      setFilteredEntries(filtered);
-    }
-  };
-
-  // Filter Search Logic
-  const handleWorkerSearch = (text) => {
-    setWorkerQuery(text);
-    setSelectedWorker(null); // Reset selection on type
-    if (text) {
-      setFilteredWorkers(
-        workers.filter((w) =>
-          w.full_name.toLowerCase().includes(text.toLowerCase()),
-        ),
-      );
-    } else {
-      setFilteredWorkers(workers);
-    }
-    setShowWorkerDropdown(true);
-  };
-
-  const handleVendorSearch = (text) => {
-    setVendorQuery(text);
-    setSelectedVendor(null); // Reset selection on type
-    if (text) {
-      setFilteredVendors(
-        vendors.filter((v) =>
-          v.full_name.toLowerCase().includes(text.toLowerCase()),
-        ),
-      );
-    } else {
-      setFilteredVendors(vendors);
-    }
-    setShowVendorDropdown(true);
-  };
-
-  const selectWorker = (worker) => {
-    setSelectedWorker(worker.id);
-    setWorkerQuery(worker.full_name);
-    setShowWorkerDropdown(false);
-    Keyboard.dismiss();
-  };
-
-  const selectVendor = (vendor) => {
-    setSelectedVendor(vendor.id);
-    setVendorQuery(vendor.full_name);
-    setShowVendorDropdown(false);
-    Keyboard.dismiss();
-  };
-
-  const applySorting = () => {
-    let sorted = [...filteredEntries];
-
-    switch (sortBy) {
-      case "date":
-        sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        break;
-      case "price_high":
-        sorted.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
-        break;
-      case "price_low":
-        sorted.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
-        break;
-      case "name":
-        sorted.sort((a, b) => a.item_name.localeCompare(b.item_name));
-        break;
     }
 
-    setFilteredEntries(sorted);
-    setFilterModalVisible(false);
+    // Apply Sort
+    if (sortBy === "price_high") result.sort((a, b) => b.price - a.price);
+    else if (sortBy === "price_low") result.sort((a, b) => a.price - b.price);
+    else if (sortBy === "name")
+      result.sort((a, b) => a.item_name.localeCompare(b.item_name));
+    else result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    setFilteredEntries(result);
   };
 
-  const applyFilters = () => {
-    loadData();
-    setFilterModalVisible(false);
-  };
-
+  // --- Handlers ---
   const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("Logout", "Are you sure?", [
+      { text: "Cancel" },
       {
         text: "Logout",
         onPress: async () => {
@@ -233,10 +171,35 @@ const DashboardScreen = ({ navigation, route }) => {
     ]);
   };
 
-  const renderEntry = ({ item }) => {
-    // Handle comma-separated images, take the first one
-    const firstImage = item.image_url ? item.image_url.split(",")[0] : null;
+  const handleWorkerSearch = (text) => {
+    setWorkerQuery(text);
+    setSelectedWorker(null);
+    text
+      ? setFilteredWorkers(
+          workers.filter((w) =>
+            w.full_name.toLowerCase().includes(text.toLowerCase()),
+          ),
+        )
+      : setFilteredWorkers(workers);
+    setShowWorkerDropdown(true);
+  };
 
+  const handleVendorSearch = (text) => {
+    setVendorQuery(text);
+    setSelectedVendor(null);
+    text
+      ? setFilteredVendors(
+          vendors.filter((v) =>
+            v.full_name.toLowerCase().includes(text.toLowerCase()),
+          ),
+        )
+      : setFilteredVendors(vendors);
+    setShowVendorDropdown(true);
+  };
+
+  // --- Components ---
+  const renderEntry = ({ item }) => {
+    const firstImage = item.image_url ? item.image_url.split(",")[0] : null;
     return (
       <TouchableOpacity
         style={styles.entryCardCompact}
@@ -250,7 +213,6 @@ const DashboardScreen = ({ navigation, route }) => {
           }
           style={styles.entryImageCompact}
         />
-
         <View style={styles.entryContentCompact}>
           <View style={styles.entryHeaderCompact}>
             <Text style={styles.entryTitleCompact} numberOfLines={1}>
@@ -260,156 +222,172 @@ const DashboardScreen = ({ navigation, route }) => {
               ₹{parseFloat(item.price).toFixed(2)}
             </Text>
           </View>
-
           <Text style={styles.entryDetailCompact}>Qty: {item.quantity}</Text>
-
           <View style={styles.entryMetaCompact}>
             <Text style={styles.entryDateCompact}>
               {new Date(item.created_at).toLocaleDateString()}
             </Text>
-
-            {user?.role === "Super Admin" && (
-              <Text style={styles.entryRoleCompact} numberOfLines={1}>
-                {item.worker?.full_name?.split(" ")[0]} →{" "}
-                {item.vendor?.full_name?.split(" ")[0]}
-              </Text>
-            )}
-
-            {user?.role === "Worker" && (
-              <Text style={styles.entryRoleCompact} numberOfLines={1}>
-                To: {item.vendor?.full_name}
-              </Text>
-            )}
-            {user?.role === "Vendor" && (
-              <Text style={styles.entryRoleCompact} numberOfLines={1}>
-                From: {item.worker?.full_name}
-              </Text>
-            )}
+            <Text style={styles.entryRoleCompact} numberOfLines={1}>
+              {user.role === "Super Admin"
+                ? `${item.worker?.full_name?.split(" ")[0]} → ${item.vendor?.full_name?.split(" ")[0]}`
+                : user.role === "Worker"
+                  ? `To: ${item.vendor?.full_name}`
+                  : `From: ${item.worker?.full_name}`}
+            </Text>
           </View>
         </View>
       </TouchableOpacity>
     );
   };
 
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Dashboard</Text>
-          <Text style={styles.headerSubtitle}>
-            {user?.full_name} ({user?.role})
-          </Text>
-        </View>
-        <TouchableOpacity onPress={handleLogout}>
-          <Icon name="logout" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Analytics Chart for Super Admin */}
-      {user?.role === "Super Admin" && analyticsData && (
-        <View style={styles.analyticsContainer}>
-          <View style={styles.analyticsHeader}>
-            <Text style={styles.analyticsTitle}>Purchase Analytics</Text>
-            <View style={styles.daysSelector}>
-              {[7, 10, 14].map((days) => (
-                <TouchableOpacity
-                  key={days}
-                  style={[
-                    styles.daysButton,
-                    analyticsDays === days && styles.daysButtonActive,
-                  ]}
-                  onPress={() => {
-                    setAnalyticsDays(days);
-                    loadAnalytics(days);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.daysButtonText,
-                      analyticsDays === days && styles.daysButtonTextActive,
-                    ]}
-                  >
-                    {days}d
-                  </Text>
-                </TouchableOpacity>
-              ))}
+  const renderAnalytics = () => (
+    <ScrollView style={styles.analyticsScroll}>
+      {analyticsData && (
+        <View style={styles.chartContainer}>
+          <Text style={styles.chartTitle}>Sales Overview (Last 7 Days)</Text>
+          <LineChart
+            data={{
+              labels: analyticsData.labels,
+              datasets: [{ data: analyticsData.data }],
+            }}
+            width={screenWidth - 40}
+            height={220}
+            chartConfig={{
+              backgroundColor: "#fff",
+              backgroundGradientFrom: "#fff",
+              backgroundGradientTo: "#fff",
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(118, 183, 239, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              propsForDots: { r: "5", strokeWidth: "2", stroke: "#76B7EF" },
+            }}
+            bezier
+            style={styles.chart}
+          />
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Total Sales</Text>
+              <Text style={styles.statValue}>
+                ₹{analyticsData.data.reduce((a, b) => a + b, 0).toFixed(0)}
+              </Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Total Txns</Text>
+              <Text style={styles.statValue}>{analyticsData.raw.length}</Text>
             </View>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <LineChart
-              data={{
-                labels: analyticsData.labels,
-                datasets: [{ data: analyticsData.data }],
-              }}
-              width={Math.max(
-                screenWidth - 40,
-                analyticsData.labels.length * 50,
-              )}
-              height={180}
-              chartConfig={{
-                backgroundColor: "#76B7EF",
-                backgroundGradientFrom: "#76B7EF",
-                backgroundGradientTo: "#76B7EF",
-                decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                style: { borderRadius: 16 },
-                propsForDots: { r: "4" },
-              }}
-              bezier
-              style={styles.chart}
-            />
-          </ScrollView>
-          <Text style={styles.totalAmount}>
-            Total: ₹{analyticsData.data.reduce((a, b) => a + b, 0).toFixed(2)}
-          </Text>
         </View>
       )}
+      <View style={{ height: 100 }} />
+    </ScrollView>
+  );
 
-      {/* Search and Filter Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Icon name="search" size={20} color="#666" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search items..."
-            value={searchQuery}
-            onChangeText={handleSearch}
-          />
+  // Tab Labels Configuration
+  const tabs =
+    user?.role === "Super Admin"
+      ? ["Analytics", "Items Purchase"]
+      : user?.role === "Vendor"
+        ? ["My Items", "Workers Items"]
+        : ["My Items", "Vendors Items"];
+
+  return (
+    <View style={styles.container}>
+      {/* Header with Tabs */}
+      <View style={styles.headerContainer}>
+        <View style={styles.topHeader}>
+          <View>
+            <Text style={styles.headerTitle}>{user?.role} Dashboard</Text>
+            <Text style={styles.headerSubtitle}>
+              Welcome, {user?.full_name}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+            <Icon name="logout" size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setFilterModalVisible(true)}
-        >
-          <Icon name="filter-list" size={24} color="#fff" />
-        </TouchableOpacity>
+
+        {/* Custom Tabs */}
+        <View style={styles.tabBar}>
+          {tabs.map((tab, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.tabItem,
+                activeTab === index && styles.tabItemActive,
+              ]}
+              onPress={() => setActiveTab(index)}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === index && styles.tabTextActive,
+                ]}
+              >
+                {tab}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      {/* Entries List */}
-      <FlatList
-        data={filteredEntries}
-        renderItem={renderEntry}
-        keyExtractor={(item) => item.id.toString()}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={loadData} />
-        }
-        contentContainerStyle={{ paddingBottom: 100 }}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Icon name="inbox" size={64} color="#ccc" />
-            <Text style={styles.emptyText}>No entries found</Text>
-          </View>
-        }
-      />
+      {/* Main Content Area */}
+      <View style={styles.contentContainer}>
+        {/* Render Analytics only for Admin on Tab 0 */}
+        {user?.role === "Super Admin" && activeTab === 0 ? (
+          renderAnalytics()
+        ) : (
+          /* Render List for all other cases */
+          <>
+            {/* Search & Filter Bar */}
+            <View style={styles.searchContainer}>
+              <View style={styles.searchBar}>
+                <Icon name="search" size={20} color="#999" />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search items..."
+                  value={searchQuery}
+                  onChangeText={(t) => {
+                    setSearchQuery(t);
+                    filterByTab();
+                  }}
+                />
+              </View>
+              <TouchableOpacity
+                style={styles.filterButton}
+                onPress={() => setFilterModalVisible(true)}
+              >
+                <Icon name="filter-list" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
 
-      {/* Add Button */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => navigation.navigate("AddItem", { user })}
-      >
-        <Icon name="add" size={28} color="#fff" />
-      </TouchableOpacity>
+            <FlatList
+              data={filteredEntries}
+              renderItem={renderEntry}
+              keyExtractor={(item) => item.id.toString()}
+              refreshControl={
+                <RefreshControl refreshing={loading} onRefresh={loadData} />
+              }
+              contentContainerStyle={{ paddingBottom: 100 }}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Icon name="inbox" size={64} color="#ccc" />
+                  <Text style={styles.emptyText}>
+                    No items found in this category.
+                  </Text>
+                </View>
+              }
+            />
+
+            {/* Add Button - Visible unless Admin Analytics */}
+            <TouchableOpacity
+              style={styles.fab}
+              onPress={() => navigation.navigate("AddItem", { user })}
+            >
+              <Icon name="add" size={28} color="#fff" />
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
 
       {/* Filter Modal */}
       <Modal
@@ -419,7 +397,7 @@ const DashboardScreen = ({ navigation, route }) => {
         onRequestClose={() => setFilterModalVisible(false)}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalContainer}>
+          <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Filter & Sort</Text>
 
@@ -430,132 +408,122 @@ const DashboardScreen = ({ navigation, route }) => {
                   { value: "price_high", label: "Price (High-Low)" },
                   { value: "price_low", label: "Price (Low-High)" },
                   { value: "name", label: "Name" },
-                ].map((option) => (
+                ].map((o) => (
                   <TouchableOpacity
-                    key={option.value}
+                    key={o.value}
                     style={[
                       styles.sortOption,
-                      sortBy === option.value && styles.sortOptionActive,
+                      sortBy === o.value && styles.sortOptionActive,
                     ]}
-                    onPress={() => setSortBy(option.value)}
+                    onPress={() => setSortBy(o.value)}
                   >
                     <Text
                       style={[
-                        styles.sortOptionText,
-                        sortBy === option.value && styles.sortOptionTextActive,
+                        styles.sortText,
+                        sortBy === o.value && styles.sortTextActive,
                       ]}
                     >
-                      {option.label}
+                      {o.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              {user?.role === "Super Admin" && (
-                <>
-                  <Text style={styles.filterLabel}>Filter by Worker:</Text>
-                  <View style={styles.dropdownContainer}>
-                    <TextInput
-                      style={styles.dropdownInput}
-                      placeholder="Search Worker..."
-                      value={workerQuery}
-                      onChangeText={handleWorkerSearch}
-                      onFocus={() => setShowWorkerDropdown(true)}
-                    />
-                    {showWorkerDropdown && (
-                      <View style={styles.dropdownList}>
-                        <TouchableOpacity
-                          style={styles.dropdownItem}
-                          onPress={() => {
-                            setSelectedWorker(null);
-                            setWorkerQuery("");
-                            setShowWorkerDropdown(false);
-                          }}
-                        >
-                          <Text
-                            style={[
-                              styles.dropdownText,
-                              { fontStyle: "italic" },
-                            ]}
-                          >
-                            All Workers
-                          </Text>
-                        </TouchableOpacity>
-                        {filteredWorkers.slice(0, 5).map((item) => (
-                          <TouchableOpacity
-                            key={item.id}
-                            style={styles.dropdownItem}
-                            onPress={() => selectWorker(item)}
-                          >
-                            <Text style={styles.dropdownText}>
-                              {item.full_name}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
+              <Text style={styles.filterLabel}>Filter by Worker:</Text>
+              <View style={styles.dropdownWrap}>
+                <TextInput
+                  style={styles.ddInput}
+                  placeholder="Search Worker..."
+                  value={workerQuery}
+                  onChangeText={handleWorkerSearch}
+                  onFocus={() => setShowWorkerDropdown(true)}
+                />
+                {showWorkerDropdown && (
+                  <View style={styles.ddList}>
+                    <TouchableOpacity
+                      style={styles.ddItem}
+                      onPress={() => {
+                        setSelectedWorker(null);
+                        setWorkerQuery("");
+                        setShowWorkerDropdown(false);
+                      }}
+                    >
+                      <Text style={[styles.ddText, { fontStyle: "italic" }]}>
+                        All Workers
+                      </Text>
+                    </TouchableOpacity>
+                    {filteredWorkers.slice(0, 5).map((i) => (
+                      <TouchableOpacity
+                        key={i.id}
+                        style={styles.ddItem}
+                        onPress={() => {
+                          setSelectedWorker(i.id);
+                          setWorkerQuery(i.full_name);
+                          setShowWorkerDropdown(false);
+                        }}
+                      >
+                        <Text style={styles.ddText}>{i.full_name}</Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
+                )}
+              </View>
 
-                  <Text style={styles.filterLabel}>Filter by Vendor:</Text>
-                  <View style={[styles.dropdownContainer, { zIndex: -1 }]}>
-                    <TextInput
-                      style={styles.dropdownInput}
-                      placeholder="Search Vendor..."
-                      value={vendorQuery}
-                      onChangeText={handleVendorSearch}
-                      onFocus={() => setShowVendorDropdown(true)}
-                    />
-                    {showVendorDropdown && (
-                      <View style={styles.dropdownList}>
-                        <TouchableOpacity
-                          style={styles.dropdownItem}
-                          onPress={() => {
-                            setSelectedVendor(null);
-                            setVendorQuery("");
-                            setShowVendorDropdown(false);
-                          }}
-                        >
-                          <Text
-                            style={[
-                              styles.dropdownText,
-                              { fontStyle: "italic" },
-                            ]}
-                          >
-                            All Vendors
-                          </Text>
-                        </TouchableOpacity>
-                        {filteredVendors.slice(0, 5).map((item) => (
-                          <TouchableOpacity
-                            key={item.id}
-                            style={styles.dropdownItem}
-                            onPress={() => selectVendor(item)}
-                          >
-                            <Text style={styles.dropdownText}>
-                              {item.full_name}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
+              <Text style={styles.filterLabel}>Filter by Vendor:</Text>
+              <View style={[styles.dropdownWrap, { zIndex: -1 }]}>
+                <TextInput
+                  style={styles.ddInput}
+                  placeholder="Search Vendor..."
+                  value={vendorQuery}
+                  onChangeText={handleVendorSearch}
+                  onFocus={() => setShowVendorDropdown(true)}
+                />
+                {showVendorDropdown && (
+                  <View style={styles.ddList}>
+                    <TouchableOpacity
+                      style={styles.ddItem}
+                      onPress={() => {
+                        setSelectedVendor(null);
+                        setVendorQuery("");
+                        setShowVendorDropdown(false);
+                      }}
+                    >
+                      <Text style={[styles.ddText, { fontStyle: "italic" }]}>
+                        All Vendors
+                      </Text>
+                    </TouchableOpacity>
+                    {filteredVendors.slice(0, 5).map((i) => (
+                      <TouchableOpacity
+                        key={i.id}
+                        style={styles.ddItem}
+                        onPress={() => {
+                          setSelectedVendor(i.id);
+                          setVendorQuery(i.full_name);
+                          setShowVendorDropdown(false);
+                        }}
+                      >
+                        <Text style={styles.ddText}>{i.full_name}</Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                </>
-              )}
+                )}
+              </View>
 
               <View style={styles.modalButtons}>
                 <TouchableOpacity
-                  style={styles.modalButton}
+                  style={styles.applyBtn}
                   onPress={() => {
-                    applySorting();
-                    applyFilters();
+                    loadData();
+                    setFilterModalVisible(false);
                   }}
                 >
-                  <Text style={styles.modalButtonText}>Apply</Text>
+                  <Text style={styles.btnText}>Apply Filters</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modalButton, styles.modalButtonSecondary]}
+                  style={styles.cancelBtn}
                   onPress={() => setFilterModalVisible(false)}
                 >
-                  <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
+                  <Text style={styles.cancelText}>Close</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -567,216 +535,170 @@ const DashboardScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  header: {
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  headerContainer: {
     backgroundColor: "#76B7EF",
-    padding: 20,
     paddingTop: 40,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#fff",
-    opacity: 0.9,
-    marginTop: 4,
-  },
-  analyticsContainer: {
-    backgroundColor: "#fff",
-    margin: 16,
-    padding: 16,
-    borderRadius: 10,
+    paddingBottom: 10,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    elevation: 4,
   },
-  analyticsHeader: {
+  topHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
+    paddingHorizontal: 20,
+    marginBottom: 15,
   },
-  analyticsTitle: {
+  headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
+  headerSubtitle: { fontSize: 13, color: "#e3f2fd", marginTop: 2 },
+  logoutBtn: {
+    padding: 8,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 20,
+  },
+
+  // Tabs
+  tabBar: {
+    flexDirection: "row",
+    marginHorizontal: 20,
+    backgroundColor: "rgba(0,0,0,0.1)",
+    borderRadius: 25,
+    padding: 4,
+  },
+  tabItem: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 20,
+  },
+  tabItemActive: {
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    elevation: 2,
+  },
+  tabText: { color: "rgba(255,255,255,0.8)", fontWeight: "600", fontSize: 14 },
+  tabTextActive: { color: "#76B7EF", fontWeight: "bold" },
+
+  contentContainer: { flex: 1 },
+
+  // Analytics
+  analyticsScroll: { padding: 16 },
+  chartContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    elevation: 2,
+  },
+  chartTitle: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
+    marginBottom: 16,
   },
-  daysSelector: {
-    flexDirection: "row",
-    gap: 8,
+  statsRow: { flexDirection: "row", gap: 12, marginTop: 16 },
+  statCard: {
+    flex: 1,
+    backgroundColor: "#f8f9fa",
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
   },
-  daysButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#76B7EF",
-  },
-  daysButtonActive: {
-    backgroundColor: "#76B7EF",
-  },
-  daysButtonText: {
-    color: "#76B7EF",
-    fontWeight: "600",
-  },
-  daysButtonTextActive: {
-    color: "#fff",
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  totalAmount: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#76B7EF",
-    textAlign: "center",
-    marginTop: 8,
-  },
+  statLabel: { fontSize: 12, color: "#666", marginBottom: 4 },
+  statValue: { fontSize: 20, fontWeight: "bold", color: "#76B7EF" },
+  chart: { marginVertical: 8, borderRadius: 16 },
+
+  // List & Cards
   searchContainer: {
     flexDirection: "row",
     padding: 16,
     gap: 12,
+    alignItems: "center",
   },
   searchBar: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    height: 45,
     elevation: 2,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-  },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 15 },
   filterButton: {
     backgroundColor: "#76B7EF",
-    borderRadius: 8,
-    width: 48,
-    height: 48,
+    borderRadius: 10,
+    width: 45,
+    height: 45,
     justifyContent: "center",
     alignItems: "center",
+    elevation: 2,
   },
-  // Compact Card Styles
+
   entryCardCompact: {
     backgroundColor: "#fff",
     marginHorizontal: 16,
     marginBottom: 12,
-    borderRadius: 10,
-    flexDirection: "row", // Horizontal layout
-    height: 100, // Fixed reduced height
+    borderRadius: 12,
+    flexDirection: "row",
+    height: 90,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
     elevation: 2,
   },
-  entryImageCompact: {
-    width: 100,
-    height: "100%",
-    backgroundColor: "#eee",
-  },
+  entryImageCompact: { width: 90, height: "100%", backgroundColor: "#eee" },
   entryContentCompact: {
     flex: 1,
     padding: 10,
     justifyContent: "space-between",
   },
-  entryHeaderCompact: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
+  entryHeaderCompact: { flexDirection: "row", justifyContent: "space-between" },
   entryTitleCompact: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "bold",
     color: "#333",
     flex: 1,
     marginRight: 8,
   },
-  entryPriceCompact: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#76B7EF",
-  },
-  entryDetailCompact: {
-    fontSize: 13,
-    color: "#666",
-  },
+  entryPriceCompact: { fontSize: 15, fontWeight: "bold", color: "#76B7EF" },
+  entryDetailCompact: { fontSize: 13, color: "#666" },
   entryMetaCompact: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 4,
   },
-  entryDateCompact: {
-    fontSize: 11,
-    color: "#999",
-  },
-  entryRoleCompact: {
-    fontSize: 11,
-    color: "#76B7EF",
-    fontWeight: "500",
-    maxWidth: 120,
-  },
+  entryDateCompact: { fontSize: 11, color: "#999" },
+  entryRoleCompact: { fontSize: 11, color: "#76B7EF", fontWeight: "600" },
 
-  // Empty State
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 100,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#999",
-    marginTop: 16,
-  },
+  emptyContainer: { alignItems: "center", marginTop: 80 },
+  emptyText: { color: "#999", marginTop: 10 },
   fab: {
     position: "absolute",
     right: 20,
     bottom: 20,
     backgroundColor: "#76B7EF",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    elevation: 6,
   },
-  modalContainer: {
+
+  // Modal
+  modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
   },
   modalContent: {
     backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: "90%",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    maxHeight: "85%",
   },
   modalTitle: {
     fontSize: 20,
@@ -785,52 +707,35 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   filterLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
     color: "#333",
-    marginTop: 16,
+    marginTop: 12,
     marginBottom: 8,
   },
-  sortOptions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+  sortOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   sortOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#76B7EF",
-    backgroundColor: "#fff",
   },
-  sortOptionActive: {
-    backgroundColor: "#76B7EF",
-  },
-  sortOptionText: {
-    color: "#76B7EF",
-    fontWeight: "600",
-  },
-  sortOptionTextActive: {
-    color: "#fff",
-  },
+  sortOptionActive: { backgroundColor: "#76B7EF" },
+  sortText: { color: "#76B7EF", fontSize: 13, fontWeight: "600" },
+  sortTextActive: { color: "#fff" },
 
-  // New Dropdown Styles for Modal
-  dropdownContainer: {
-    position: "relative",
-    zIndex: 10, // Ensure it floats above
-  },
-  dropdownInput: {
+  dropdownWrap: { position: "relative", zIndex: 10 },
+  ddInput: {
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    padding: 10,
     backgroundColor: "#f9f9f9",
   },
-  dropdownList: {
+  ddList: {
     position: "absolute",
-    top: 50,
+    top: 45,
     left: 0,
     right: 0,
     backgroundColor: "#fff",
@@ -838,47 +743,31 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     borderRadius: 8,
     maxHeight: 150,
-    elevation: 5,
     zIndex: 100,
+    elevation: 5,
   },
-  dropdownItem: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: "#333",
-  },
+  ddItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: "#eee" },
+  ddText: { fontSize: 14, color: "#333" },
 
-  modalButtons: {
-    flexDirection: "row",
-    marginTop: 24,
-    gap: 12,
-    zIndex: -1,
-  },
-  modalButton: {
+  modalButtons: { flexDirection: "row", marginTop: 24, gap: 12 },
+  applyBtn: {
     flex: 1,
     backgroundColor: "#76B7EF",
-    paddingVertical: 14,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 10,
     alignItems: "center",
   },
-  modalButtonSecondary: {
+  cancelBtn: {
+    flex: 1,
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#76B7EF",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
   },
-  modalButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  modalButtonTextSecondary: {
-    color: "#76B7EF",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  btnText: { color: "#fff", fontWeight: "bold" },
+  cancelText: { color: "#76B7EF", fontWeight: "bold" },
 });
 
 export default DashboardScreen;

@@ -9,7 +9,6 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  FlatList,
   Keyboard,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -20,10 +19,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 const AddItemScreen = ({ navigation, route }) => {
   const { user } = route.params;
   const [loading, setLoading] = useState(false);
-
-  // Changed from single imageUri to array of images
   const [selectedImages, setSelectedImages] = useState([]);
-
   const [itemName, setItemName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
@@ -49,7 +45,7 @@ const AddItemScreen = ({ navigation, route }) => {
     if (cameraStatus !== "granted" || mediaStatus !== "granted") {
       Alert.alert(
         "Permissions Required",
-        "Camera and media library permissions are required to use this feature.",
+        "Camera and media library permissions are required.",
       );
     }
   };
@@ -101,7 +97,7 @@ const AddItemScreen = ({ navigation, route }) => {
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false, // Disabled native cropper for better full-image results
+        allowsEditing: false,
         quality: 0.8,
       });
 
@@ -117,9 +113,9 @@ const AddItemScreen = ({ navigation, route }) => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true, // Enable multiple selection
-        selectionLimit: 5, // Optional: Limit max images
-        allowsEditing: false, // Disabled native cropper
+        allowsMultipleSelection: true,
+        selectionLimit: 5,
+        allowsEditing: false,
         quality: 0.8,
       });
 
@@ -139,48 +135,42 @@ const AddItemScreen = ({ navigation, route }) => {
   };
 
   const handleSubmit = async () => {
-    if (selectedImages.length === 0) {
-      Alert.alert("Error", "Please add at least one image");
-      return;
-    }
+    if (selectedImages.length === 0)
+      return Alert.alert("Error", "Please add at least one image");
     if (!itemName.trim()) return Alert.alert("Error", "Please enter item name");
     if (!quantity.trim()) return Alert.alert("Error", "Please enter quantity");
     if (!price.trim() || isNaN(parseFloat(price)))
       return Alert.alert("Error", "Please enter a valid price");
-    if (!selectedUser) {
-      Alert.alert(
+    if (!selectedUser)
+      return Alert.alert(
         "Error",
         `Please select a valid ${user.role === "Worker" ? "vendor" : "worker"}`,
       );
-      return;
-    }
 
     setLoading(true);
 
     try {
-      // 1. Upload All Images in Parallel
       const uploadPromises = selectedImages.map((uri) => uploadImage(uri));
       const results = await Promise.all(uploadPromises);
 
-      // 2. Check for failures and collect URLs
       const uploadedUrls = [];
       const uploadedFilenames = [];
 
       results.forEach((res) => {
         if (!res.success)
-          throw new Error(res.error || "Failed to upload one of the images");
+          throw new Error(res.error || "Failed to upload image");
         uploadedUrls.push(res.url);
         uploadedFilenames.push(res.filename);
       });
 
-      // 3. Prepare entry data (Join URLs with comma)
       const entryData = {
         item_name: itemName.trim(),
         quantity: quantity.trim(),
         price: parseFloat(price),
-        image_url: uploadedUrls.join(","), // Storing multiple URLs as comma-separated string
+        image_url: uploadedUrls.join(","),
         image_filename: uploadedFilenames.join(","),
         created_at: new Date().toISOString(),
+        created_by: user.id, // IMPORTANT: Tracking who created the item
       };
 
       if (user.role === "Worker") {
@@ -192,7 +182,6 @@ const AddItemScreen = ({ navigation, route }) => {
       }
 
       const result = await addPurchaseEntry(entryData);
-
       setLoading(false);
 
       if (result.success) {
@@ -208,18 +197,6 @@ const AddItemScreen = ({ navigation, route }) => {
     }
   };
 
-  const renderImageItem = ({ item, index }) => (
-    <View style={styles.thumbnailContainer}>
-      <Image source={{ uri: item }} style={styles.thumbnail} />
-      <TouchableOpacity
-        style={styles.removeBtn}
-        onPress={() => removeImage(index)}
-      >
-        <MaterialIcons name="close" size={16} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
@@ -231,16 +208,13 @@ const AddItemScreen = ({ navigation, route }) => {
       </View>
 
       <View style={styles.content}>
-        {/* New Multi-Image Section */}
         <View style={styles.imageSection}>
           <Text style={styles.label}>Images ({selectedImages.length})</Text>
-
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.imageList}
           >
-            {/* Add Button */}
             <TouchableOpacity
               style={styles.addMoreBtn}
               onPress={handleImagePicker}
@@ -248,8 +222,6 @@ const AddItemScreen = ({ navigation, route }) => {
               <MaterialIcons name="add-a-photo" size={32} color="#76B7EF" />
               <Text style={styles.addMoreText}>Add</Text>
             </TouchableOpacity>
-
-            {/* Selected Images List */}
             {selectedImages.map((uri, index) => (
               <View key={index} style={styles.thumbnailContainer}>
                 <Image source={{ uri: uri }} style={styles.thumbnail} />
@@ -264,7 +236,6 @@ const AddItemScreen = ({ navigation, route }) => {
           </ScrollView>
         </View>
 
-        {/* Inputs */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Item Name *</Text>
           <TextInput
@@ -296,7 +267,6 @@ const AddItemScreen = ({ navigation, route }) => {
           />
         </View>
 
-        {/* Dropdown User Select */}
         <View style={[styles.inputContainer, { zIndex: 1000 }]}>
           <Text style={styles.label}>
             Select {user.role === "Worker" ? "Vendor" : "Worker"} *
@@ -316,7 +286,6 @@ const AddItemScreen = ({ navigation, route }) => {
               style={styles.searchIcon}
             />
           </View>
-
           {showDropdown && (
             <View style={styles.dropdownList}>
               {filteredUsers.length > 0 ? (
@@ -356,10 +325,7 @@ const AddItemScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -370,23 +336,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  // New Styles for Image List
-  imageSection: {
-    marginBottom: 20,
-  },
-  imageList: {
-    flexDirection: "row",
-    paddingVertical: 10,
-  },
+  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#333" },
+  content: { padding: 16, paddingBottom: 100 },
+  imageSection: { marginBottom: 20 },
+  imageList: { flexDirection: "row", paddingVertical: 10 },
   addMoreBtn: {
     width: 100,
     height: 100,
@@ -399,15 +352,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
     backgroundColor: "#fff",
   },
-  addMoreText: {
-    color: "#76B7EF",
-    fontWeight: "600",
-    marginTop: 4,
-  },
-  thumbnailContainer: {
-    position: "relative",
-    marginRight: 12,
-  },
+  addMoreText: { color: "#76B7EF", fontWeight: "600", marginTop: 4 },
+  thumbnailContainer: { position: "relative", marginRight: 12 },
   thumbnail: {
     width: 100,
     height: 100,
@@ -427,16 +373,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#fff",
   },
-  // Existing Styles
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
+  inputContainer: { marginBottom: 20 },
+  label: { fontSize: 16, fontWeight: "600", color: "#333", marginBottom: 8 },
   input: {
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -446,14 +384,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 16,
   },
-  searchContainer: {
-    position: "relative",
-    justifyContent: "center",
-  },
-  searchIcon: {
-    position: "absolute",
-    right: 12,
-  },
+  searchContainer: { position: "relative", justifyContent: "center" },
+  searchIcon: { position: "absolute", right: 12 },
   dropdownList: {
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -470,15 +402,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
-  dropdownText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  dropdownSubText: {
-    fontSize: 12,
-    color: "#999",
-    marginTop: 2,
-  },
+  dropdownText: { fontSize: 16, color: "#333" },
+  dropdownSubText: { fontSize: 12, color: "#999", marginTop: 2 },
   submitButton: {
     backgroundColor: "#76B7EF",
     borderRadius: 8,
@@ -491,11 +416,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  submitButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
+  submitButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
 });
 
 export default AddItemScreen;
