@@ -14,6 +14,7 @@ import {
   Dimensions,
   Keyboard,
   TouchableWithoutFeedback,
+  ActivityIndicator,
 } from "react-native";
 import {
   getPurchaseEntries,
@@ -31,7 +32,7 @@ const DashboardScreen = ({ navigation, route }) => {
   const [user, setUser] = useState(route.params?.user || null);
 
   // Tabs State
-  const [activeTab, setActiveTab] = useState(0); // 0: Left Tab, 1: Right Tab
+  const [activeTab, setActiveTab] = useState(0);
 
   // Data States
   const [entries, setEntries] = useState([]);
@@ -56,24 +57,47 @@ const DashboardScreen = ({ navigation, route }) => {
   const [showWorkerDropdown, setShowWorkerDropdown] = useState(false);
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
 
+  // 1. Initialize user if missing (fixes the null crash)
   useEffect(() => {
+    const initializeUser = async () => {
+      if (!user) {
+        try {
+          const userStr = await AsyncStorage.getItem("user");
+          if (userStr) {
+            setUser(JSON.parse(userStr));
+          } else {
+            navigation.replace("Login");
+          }
+        } catch (error) {
+          navigation.replace("Login");
+        }
+      }
+    };
+    initializeUser();
+  }, []);
+
+  // 2. Load data ONLY when user is available
+  useEffect(() => {
+    if (!user) return; // Guard clause
+
     loadData();
     loadUsers();
-    if (user?.role === "Super Admin") {
+    if (user.role === "Super Admin") {
       loadAnalytics();
     }
   }, [user]);
 
-  // Effect to filter entries when switching tabs
+  // 3. Filter data ONLY when user is available
   useEffect(() => {
+    if (!user) return; // Guard clause
+
     filterByTab();
-  }, [activeTab, entries]);
+  }, [activeTab, entries, user]);
 
   const loadData = async () => {
     setLoading(true);
     const filters = {};
 
-    // Base filters from Supabase
     if (user?.role === "Worker") filters.workerId = user.id;
     if (user?.role === "Vendor") filters.vendorId = user.id;
     if (selectedWorker) filters.workerId = selectedWorker;
@@ -103,7 +127,7 @@ const DashboardScreen = ({ navigation, route }) => {
   };
 
   const loadAnalytics = async () => {
-    const result = await getAnalyticsData(10); // Last 10 days
+    const result = await getAnalyticsData(10);
     if (result.success) processAnalyticsData(result.data);
   };
 
@@ -124,29 +148,24 @@ const DashboardScreen = ({ navigation, route }) => {
   };
 
   const filterByTab = () => {
+    if (!user) return; // Final guard to prevent crash
+
     let result = [...entries];
 
-    // ROLE BASED TAB FILTERING
-    if (user?.role !== "Super Admin") {
+    if (user.role !== "Super Admin") {
       if (activeTab === 0) {
-        // "My Items" -> Created By Me
         result = result.filter((e) => e.created_by === user.id);
       } else {
-        // "Worker/Vendor Items" -> Created By Others
-        // If created_by is missing (old data), assume it belongs to the 'other' category if I didn't create it
         result = result.filter((e) => e.created_by !== user.id);
       }
     }
-    // Note: Admin sees all entries in Tab 1 (Items Purchase). Tab 0 is Analytics (Not a list).
 
-    // Apply Search
     if (searchQuery) {
       result = result.filter((e) =>
         e.item_name.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
-    // Apply Sort
     if (sortBy === "price_high") result.sort((a, b) => b.price - a.price);
     else if (sortBy === "price_low") result.sort((a, b) => a.price - b.price);
     else if (sortBy === "name")
@@ -156,7 +175,6 @@ const DashboardScreen = ({ navigation, route }) => {
     setFilteredEntries(result);
   };
 
-  // --- Handlers ---
   const handleLogout = async () => {
     Alert.alert("Logout", "Are you sure?", [
       { text: "Cancel" },
@@ -197,7 +215,6 @@ const DashboardScreen = ({ navigation, route }) => {
     setShowVendorDropdown(true);
   };
 
-  // --- Components ---
   const renderEntry = ({ item }) => {
     const firstImage = item.image_url ? item.image_url.split(",")[0] : null;
     return (
@@ -282,31 +299,40 @@ const DashboardScreen = ({ navigation, route }) => {
     </ScrollView>
   );
 
-  // Tab Labels Configuration
+  // Show a loading spinner while pulling user from storage to avoid flashing UI
+  if (!user) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <ActivityIndicator size="large" color="#76B7EF" />
+      </View>
+    );
+  }
+
   const tabs =
-    user?.role === "Super Admin"
+    user.role === "Super Admin"
       ? ["Analytics", "Items Purchase"]
-      : user?.role === "Vendor"
+      : user.role === "Vendor"
         ? ["My Items", "Workers Items"]
         : ["My Items", "Vendors Items"];
 
   return (
     <View style={styles.container}>
-      {/* Header with Tabs */}
       <View style={styles.headerContainer}>
         <View style={styles.topHeader}>
           <View>
-            <Text style={styles.headerTitle}>{user?.role} Dashboard</Text>
-            <Text style={styles.headerSubtitle}>
-              Welcome, {user?.full_name}
-            </Text>
+            <Text style={styles.headerTitle}>{user.role} Dashboard</Text>
+            <Text style={styles.headerSubtitle}>Welcome, {user.full_name}</Text>
           </View>
           <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
             <Icon name="logout" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
 
-        {/* Custom Tabs */}
         <View style={styles.tabBar}>
           {tabs.map((tab, index) => (
             <TouchableOpacity
@@ -330,15 +356,11 @@ const DashboardScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      {/* Main Content Area */}
       <View style={styles.contentContainer}>
-        {/* Render Analytics only for Admin on Tab 0 */}
-        {user?.role === "Super Admin" && activeTab === 0 ? (
+        {user.role === "Super Admin" && activeTab === 0 ? (
           renderAnalytics()
         ) : (
-          /* Render List for all other cases */
           <>
-            {/* Search & Filter Bar */}
             <View style={styles.searchContainer}>
               <View style={styles.searchBar}>
                 <Icon name="search" size={20} color="#999" />
@@ -378,7 +400,6 @@ const DashboardScreen = ({ navigation, route }) => {
               }
             />
 
-            {/* Add Button - Visible unless Admin Analytics */}
             <TouchableOpacity
               style={styles.fab}
               onPress={() => navigation.navigate("AddItem", { user })}
@@ -389,7 +410,6 @@ const DashboardScreen = ({ navigation, route }) => {
         )}
       </View>
 
-      {/* Filter Modal */}
       <Modal
         visible={filterModalVisible}
         transparent
@@ -558,7 +578,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
 
-  // Tabs
   tabBar: {
     flexDirection: "row",
     marginHorizontal: 20,
@@ -583,7 +602,6 @@ const styles = StyleSheet.create({
 
   contentContainer: { flex: 1 },
 
-  // Analytics
   analyticsScroll: { padding: 16 },
   chartContainer: {
     backgroundColor: "#fff",
@@ -610,7 +628,6 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: "bold", color: "#76B7EF" },
   chart: { marginVertical: 8, borderRadius: 16 },
 
-  // List & Cards
   searchContainer: {
     flexDirection: "row",
     padding: 16,
@@ -687,7 +704,6 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
 
-  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
