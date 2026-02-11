@@ -21,6 +21,7 @@ import {
   signOut,
   getAllUsers,
   getAnalyticsData,
+  verifyPurchaseEntry,
 } from "../services/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
@@ -29,23 +30,19 @@ import { LineChart } from "react-native-chart-kit";
 const screenWidth = Dimensions.get("window").width;
 
 const DashboardScreen = ({ navigation, route }) => {
-  const [user, setUser] = useState(route.params?.user || null);
-
-  // Tabs State
+  const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
 
-  // Data States
   const [entries, setEntries] = useState([]);
   const [filteredEntries, setFilteredEntries] = useState([]);
   const [loading, setLoading] = useState(false);
   const [analyticsData, setAnalyticsData] = useState(null);
 
-  // Filter States
   const [searchQuery, setSearchQuery] = useState("");
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortBy, setSortBy] = useState("date");
+  const [statusFilter, setStatusFilter] = useState("All");
 
-  // Filter Logic Data
   const [workers, setWorkers] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [selectedWorker, setSelectedWorker] = useState(null);
@@ -57,60 +54,49 @@ const DashboardScreen = ({ navigation, route }) => {
   const [showWorkerDropdown, setShowWorkerDropdown] = useState(false);
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
 
-  // 1. Initialize user if missing (fixes the null crash)
+  // Image Viewer State
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [currentViewImage, setCurrentViewImage] = useState(null);
+
   useEffect(() => {
-    const initializeUser = async () => {
-      if (!user) {
-        try {
-          const userStr = await AsyncStorage.getItem("user");
-          if (userStr) {
-            setUser(JSON.parse(userStr));
-          } else {
-            navigation.replace("Login");
-          }
-        } catch (error) {
-          navigation.replace("Login");
-        }
+    const initUser = async () => {
+      if (!route.params?.user) {
+        const userStr = await AsyncStorage.getItem("user");
+        if (userStr) setUser(JSON.parse(userStr));
+        else navigation.replace("Login");
+      } else {
+        setUser(route.params.user);
       }
     };
-    initializeUser();
+    initUser();
   }, []);
 
-  // 2. Load data ONLY when user is available
   useEffect(() => {
-    if (!user) return; // Guard clause
-
+    if (!user) return;
     loadData();
     loadUsers();
-    if (user.role === "Super Admin") {
-      loadAnalytics();
-    }
+    if (user.role === "Super Admin") loadAnalytics();
   }, [user]);
 
-  // 3. Filter data ONLY when user is available
   useEffect(() => {
-    if (!user) return; // Guard clause
-
-    filterByTab();
-  }, [activeTab, entries, user]);
+    if (user) filterByTab();
+  }, [
+    activeTab,
+    entries,
+    user,
+    searchQuery,
+    sortBy,
+    statusFilter,
+    selectedWorker,
+    selectedVendor,
+  ]);
 
   const loadData = async () => {
     setLoading(true);
-    const filters = {};
-
-    if (user?.role === "Worker") filters.workerId = user.id;
-    if (user?.role === "Vendor") filters.vendorId = user.id;
-    if (selectedWorker) filters.workerId = selectedWorker;
-    if (selectedVendor) filters.vendorId = selectedVendor;
-
-    const result = await getPurchaseEntries(filters);
+    const result = await getPurchaseEntries({});
     setLoading(false);
-
-    if (result.success) {
-      setEntries(result.data);
-    } else {
-      Alert.alert("Error", result.error);
-    }
+    if (result.success) setEntries(result.data);
+    else Alert.alert("Error", result.error);
   };
 
   const loadUsers = async () => {
@@ -139,56 +125,24 @@ const DashboardScreen = ({ navigation, route }) => {
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split("T")[0];
       dayLabels.push(date.getDate().toString());
-      const dayTotal = data
-        .filter((entry) => entry.created_at.split("T")[0] === dateStr)
-        .reduce((sum, entry) => sum + parseFloat(entry.price || 0), 0);
-      amounts.push(dayTotal);
+      amounts.push(
+        data
+          .filter((e) => e.created_at.split("T")[0] === dateStr)
+          .reduce((s, e) => s + parseFloat(e.price || 0), 0),
+      );
     }
     setAnalyticsData({ labels: dayLabels, data: amounts, raw: data });
   };
 
-  const filterByTab = () => {
-    if (!user) return; // Final guard to prevent crash
-
-    let result = [...entries];
-
-    if (user.role !== "Super Admin") {
-      if (activeTab === 0) {
-        result = result.filter((e) => e.created_by === user.id);
-      } else {
-        result = result.filter((e) => e.created_by !== user.id);
-      }
-    }
-
-    if (searchQuery) {
-      result = result.filter((e) =>
-        e.item_name.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
-    }
-
-    if (sortBy === "price_high") result.sort((a, b) => b.price - a.price);
-    else if (sortBy === "price_low") result.sort((a, b) => a.price - b.price);
-    else if (sortBy === "name")
-      result.sort((a, b) => a.item_name.localeCompare(b.item_name));
-    else result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    setFilteredEntries(result);
+  const handleVerifyItem = async (id) => {
+    setLoading(true);
+    const res = await verifyPurchaseEntry(id);
+    if (res.success) loadData();
+    else Alert.alert("Error", "Could not verify item.");
+    setLoading(false);
   };
 
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure?", [
-      { text: "Cancel" },
-      {
-        text: "Logout",
-        onPress: async () => {
-          await signOut();
-          await AsyncStorage.removeItem("user");
-          navigation.replace("Login");
-        },
-      },
-    ]);
-  };
-
+  // MISSING FUNCTIONS ADDED HERE
   const handleWorkerSearch = (text) => {
     setWorkerQuery(text);
     setSelectedWorker(null);
@@ -215,21 +169,77 @@ const DashboardScreen = ({ navigation, route }) => {
     setShowVendorDropdown(true);
   };
 
+  const filterByTab = () => {
+    let result = [...entries];
+
+    if (user.role === "Super Admin") {
+      if (statusFilter !== "All")
+        result = result.filter((e) => e.status === statusFilter);
+      if (selectedWorker)
+        result = result.filter((e) => e.worker_id === selectedWorker);
+      if (selectedVendor)
+        result = result.filter((e) => e.vendor_id === selectedVendor);
+    } else {
+      if (activeTab === 0) {
+        result = result.filter((e) => e.created_by === user.id);
+      } else {
+        if (user.role === "Worker")
+          result = result.filter(
+            (e) => e.worker_id === user.id && e.created_by !== user.id,
+          );
+        if (user.role === "Vendor")
+          result = result.filter(
+            (e) => e.vendor_id === user.id && e.created_by !== user.id,
+          );
+      }
+    }
+
+    if (searchQuery)
+      result = result.filter((e) =>
+        e.item_name.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
+
+    if (sortBy === "price_high") result.sort((a, b) => b.price - a.price);
+    else if (sortBy === "price_low") result.sort((a, b) => a.price - b.price);
+    else if (sortBy === "name")
+      result.sort((a, b) => a.item_name.localeCompare(b.item_name));
+    else result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    setFilteredEntries(result);
+  };
+
   const renderEntry = ({ item }) => {
     const firstImage = item.image_url ? item.image_url.split(",")[0] : null;
+    const isPending = item.status === "Pending";
+
+    const canVerify =
+      isPending &&
+      user.role !== "Super Admin" &&
+      item.created_by !== user.id &&
+      ((user.role === "Worker" && item.worker_id === user.id) ||
+        (user.role === "Vendor" && item.vendor_id === user.id));
+
     return (
       <TouchableOpacity
         style={styles.entryCardCompact}
         onPress={() => navigation.navigate("EditEntry", { entry: item, user })}
       >
-        <Image
-          source={
-            firstImage
-              ? { uri: firstImage }
-              : { uri: "https://via.placeholder.com/80" }
-          }
-          style={styles.entryImageCompact}
-        />
+        <TouchableOpacity
+          onPress={() => {
+            setCurrentViewImage(firstImage);
+            setViewerVisible(true);
+          }}
+        >
+          <Image
+            source={
+              firstImage
+                ? { uri: firstImage }
+                : { uri: "https://via.placeholder.com/90" }
+            }
+            style={styles.entryImageCompact}
+          />
+        </TouchableOpacity>
+
         <View style={styles.entryContentCompact}>
           <View style={styles.entryHeaderCompact}>
             <Text style={styles.entryTitleCompact} numberOfLines={1}>
@@ -239,68 +249,53 @@ const DashboardScreen = ({ navigation, route }) => {
               ₹{parseFloat(item.price).toFixed(2)}
             </Text>
           </View>
+
           <Text style={styles.entryDetailCompact}>Qty: {item.quantity}</Text>
+
           <View style={styles.entryMetaCompact}>
             <Text style={styles.entryDateCompact}>
               {new Date(item.created_at).toLocaleDateString()}
             </Text>
-            <Text style={styles.entryRoleCompact} numberOfLines={1}>
-              {user.role === "Super Admin"
-                ? `${item.worker?.full_name?.split(" ")[0]} → ${item.vendor?.full_name?.split(" ")[0]}`
-                : user.role === "Worker"
-                  ? `To: ${item.vendor?.full_name}`
-                  : `From: ${item.worker?.full_name}`}
-            </Text>
+
+            {canVerify ? (
+              <TouchableOpacity
+                style={styles.verifyBtnSmall}
+                onPress={() => handleVerifyItem(item.id)}
+              >
+                <Text style={styles.verifyBtnText}>Verify</Text>
+              </TouchableOpacity>
+            ) : (
+              <View
+                style={[
+                  styles.statusBadge,
+                  isPending ? styles.badgePending : styles.badgeVerified,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusText,
+                    isPending ? styles.textPending : styles.textVerified,
+                  ]}
+                >
+                  {item.status || "Verified"}
+                </Text>
+              </View>
+            )}
           </View>
+
+          <Text style={styles.entryRoleCompact} numberOfLines={1}>
+            {user.role === "Super Admin"
+              ? `${item.worker?.full_name?.split(" ")[0] || "Local"} ↔ ${item.vendor?.full_name?.split(" ")[0] || "None"}`
+              : user.role === "Worker"
+                ? `Vendor: ${item.vendor?.full_name || "Local Shop"}`
+                : `Worker: ${item.worker?.full_name || "None"}`}
+          </Text>
         </View>
       </TouchableOpacity>
     );
   };
 
-  const renderAnalytics = () => (
-    <ScrollView style={styles.analyticsScroll}>
-      {analyticsData && (
-        <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>Sales Overview (Last 7 Days)</Text>
-          <LineChart
-            data={{
-              labels: analyticsData.labels,
-              datasets: [{ data: analyticsData.data }],
-            }}
-            width={screenWidth - 40}
-            height={220}
-            chartConfig={{
-              backgroundColor: "#fff",
-              backgroundGradientFrom: "#fff",
-              backgroundGradientTo: "#fff",
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(118, 183, 239, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              propsForDots: { r: "5", strokeWidth: "2", stroke: "#76B7EF" },
-            }}
-            bezier
-            style={styles.chart}
-          />
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Sales</Text>
-              <Text style={styles.statValue}>
-                ₹{analyticsData.data.reduce((a, b) => a + b, 0).toFixed(0)}
-              </Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statLabel}>Total Txns</Text>
-              <Text style={styles.statValue}>{analyticsData.raw.length}</Text>
-            </View>
-          </View>
-        </View>
-      )}
-      <View style={{ height: 100 }} />
-    </ScrollView>
-  );
-
-  // Show a loading spinner while pulling user from storage to avoid flashing UI
-  if (!user) {
+  if (!user)
     return (
       <View
         style={[
@@ -311,7 +306,6 @@ const DashboardScreen = ({ navigation, route }) => {
         <ActivityIndicator size="large" color="#76B7EF" />
       </View>
     );
-  }
 
   const tabs =
     user.role === "Super Admin"
@@ -328,25 +322,29 @@ const DashboardScreen = ({ navigation, route }) => {
             <Text style={styles.headerTitle}>{user.role} Dashboard</Text>
             <Text style={styles.headerSubtitle}>Welcome, {user.full_name}</Text>
           </View>
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
+          <TouchableOpacity
+            onPress={() => {
+              signOut();
+              AsyncStorage.removeItem("user");
+              navigation.replace("Login");
+            }}
+            style={styles.logoutBtn}
+          >
             <Icon name="logout" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.tabBar}>
-          {tabs.map((tab, index) => (
+          {tabs.map((tab, i) => (
             <TouchableOpacity
-              key={index}
-              style={[
-                styles.tabItem,
-                activeTab === index && styles.tabItemActive,
-              ]}
-              onPress={() => setActiveTab(index)}
+              key={i}
+              style={[styles.tabItem, activeTab === i && styles.tabItemActive]}
+              onPress={() => setActiveTab(i)}
             >
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === index && styles.tabTextActive,
+                  activeTab === i && styles.tabTextActive,
                 ]}
               >
                 {tab}
@@ -358,7 +356,53 @@ const DashboardScreen = ({ navigation, route }) => {
 
       <View style={styles.contentContainer}>
         {user.role === "Super Admin" && activeTab === 0 ? (
-          renderAnalytics()
+          <ScrollView style={styles.analyticsScroll}>
+            {analyticsData && (
+              <View style={styles.chartContainer}>
+                <Text style={styles.chartTitle}>
+                  Sales Overview (Last 7 Days)
+                </Text>
+                <LineChart
+                  data={{
+                    labels: analyticsData.labels,
+                    datasets: [{ data: analyticsData.data }],
+                  }}
+                  width={screenWidth - 40}
+                  height={220}
+                  chartConfig={{
+                    backgroundColor: "#fff",
+                    backgroundGradientFrom: "#fff",
+                    backgroundGradientTo: "#fff",
+                    decimalPlaces: 0,
+                    color: (o = 1) => `rgba(118, 183, 239, ${o})`,
+                    labelColor: (o = 1) => `rgba(0, 0, 0, ${o})`,
+                    propsForDots: {
+                      r: "5",
+                      strokeWidth: "2",
+                      stroke: "#76B7EF",
+                    },
+                  }}
+                  bezier
+                  style={styles.chart}
+                />
+                <View style={styles.statsRow}>
+                  <View style={styles.statCard}>
+                    <Text style={styles.statLabel}>Total Value</Text>
+                    <Text style={styles.statValue}>
+                      ₹
+                      {analyticsData.data.reduce((a, b) => a + b, 0).toFixed(0)}
+                    </Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Text style={styles.statLabel}>Total Entries</Text>
+                    <Text style={styles.statValue}>
+                      {analyticsData.raw.length}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </ScrollView>
         ) : (
           <>
             <View style={styles.searchContainer}>
@@ -368,10 +412,7 @@ const DashboardScreen = ({ navigation, route }) => {
                   style={styles.searchInput}
                   placeholder="Search items..."
                   value={searchQuery}
-                  onChangeText={(t) => {
-                    setSearchQuery(t);
-                    filterByTab();
-                  }}
+                  onChangeText={setSearchQuery}
                 />
               </View>
               <TouchableOpacity
@@ -393,13 +434,10 @@ const DashboardScreen = ({ navigation, route }) => {
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Icon name="inbox" size={64} color="#ccc" />
-                  <Text style={styles.emptyText}>
-                    No items found in this category.
-                  </Text>
+                  <Text style={styles.emptyText}>No items found.</Text>
                 </View>
               }
             />
-
             <TouchableOpacity
               style={styles.fab}
               onPress={() => navigation.navigate("AddItem", { user })}
@@ -410,16 +448,38 @@ const DashboardScreen = ({ navigation, route }) => {
         )}
       </View>
 
-      <Modal
-        visible={filterModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setFilterModalVisible(false)}
-      >
+      <Modal visible={filterModalVisible} transparent animationType="slide">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Filter & Sort</Text>
+
+              {user.role === "Super Admin" && (
+                <>
+                  <Text style={styles.filterLabel}>Status:</Text>
+                  <View style={styles.sortOptions}>
+                    {["All", "Pending", "Verified"].map((s) => (
+                      <TouchableOpacity
+                        key={s}
+                        style={[
+                          styles.sortOption,
+                          statusFilter === s && styles.sortOptionActive,
+                        ]}
+                        onPress={() => setStatusFilter(s)}
+                      >
+                        <Text
+                          style={[
+                            styles.sortText,
+                            statusFilter === s && styles.sortTextActive,
+                          ]}
+                        >
+                          {s}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
 
               <Text style={styles.filterLabel}>Sort By:</Text>
               <View style={styles.sortOptions}>
@@ -449,106 +509,128 @@ const DashboardScreen = ({ navigation, route }) => {
                 ))}
               </View>
 
-              <Text style={styles.filterLabel}>Filter by Worker:</Text>
-              <View style={styles.dropdownWrap}>
-                <TextInput
-                  style={styles.ddInput}
-                  placeholder="Search Worker..."
-                  value={workerQuery}
-                  onChangeText={handleWorkerSearch}
-                  onFocus={() => setShowWorkerDropdown(true)}
-                />
-                {showWorkerDropdown && (
-                  <View style={styles.ddList}>
-                    <TouchableOpacity
-                      style={styles.ddItem}
-                      onPress={() => {
-                        setSelectedWorker(null);
-                        setWorkerQuery("");
-                        setShowWorkerDropdown(false);
-                      }}
-                    >
-                      <Text style={[styles.ddText, { fontStyle: "italic" }]}>
-                        All Workers
-                      </Text>
-                    </TouchableOpacity>
-                    {filteredWorkers.slice(0, 5).map((i) => (
-                      <TouchableOpacity
-                        key={i.id}
-                        style={styles.ddItem}
-                        onPress={() => {
-                          setSelectedWorker(i.id);
-                          setWorkerQuery(i.full_name);
-                          setShowWorkerDropdown(false);
-                        }}
+              {user.role === "Super Admin" && (
+                <>
+                  <Text style={styles.filterLabel}>Filter by Worker:</Text>
+                  <View style={styles.dropdownWrap}>
+                    <TextInput
+                      style={styles.ddInput}
+                      placeholder="Search Worker..."
+                      value={workerQuery}
+                      onChangeText={handleWorkerSearch}
+                      onFocus={() => setShowWorkerDropdown(true)}
+                    />
+                    {showWorkerDropdown && (
+                      <ScrollView
+                        nestedScrollEnabled={true}
+                        style={styles.ddList}
                       >
-                        <Text style={styles.ddText}>{i.full_name}</Text>
-                      </TouchableOpacity>
-                    ))}
+                        <TouchableOpacity
+                          style={styles.ddItem}
+                          onPress={() => {
+                            setSelectedWorker(null);
+                            setWorkerQuery("");
+                            setShowWorkerDropdown(false);
+                          }}
+                        >
+                          <Text
+                            style={[styles.ddText, { fontStyle: "italic" }]}
+                          >
+                            All Workers
+                          </Text>
+                        </TouchableOpacity>
+                        {filteredWorkers.slice(0, 5).map((i) => (
+                          <TouchableOpacity
+                            key={i.id}
+                            style={styles.ddItem}
+                            onPress={() => {
+                              setSelectedWorker(i.id);
+                              setWorkerQuery(i.full_name);
+                              setShowWorkerDropdown(false);
+                            }}
+                          >
+                            <Text style={styles.ddText}>{i.full_name}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    )}
                   </View>
-                )}
-              </View>
-
-              <Text style={styles.filterLabel}>Filter by Vendor:</Text>
-              <View style={[styles.dropdownWrap, { zIndex: -1 }]}>
-                <TextInput
-                  style={styles.ddInput}
-                  placeholder="Search Vendor..."
-                  value={vendorQuery}
-                  onChangeText={handleVendorSearch}
-                  onFocus={() => setShowVendorDropdown(true)}
-                />
-                {showVendorDropdown && (
-                  <View style={styles.ddList}>
-                    <TouchableOpacity
-                      style={styles.ddItem}
-                      onPress={() => {
-                        setSelectedVendor(null);
-                        setVendorQuery("");
-                        setShowVendorDropdown(false);
-                      }}
-                    >
-                      <Text style={[styles.ddText, { fontStyle: "italic" }]}>
-                        All Vendors
-                      </Text>
-                    </TouchableOpacity>
-                    {filteredVendors.slice(0, 5).map((i) => (
-                      <TouchableOpacity
-                        key={i.id}
-                        style={styles.ddItem}
-                        onPress={() => {
-                          setSelectedVendor(i.id);
-                          setVendorQuery(i.full_name);
-                          setShowVendorDropdown(false);
-                        }}
+                  <Text style={styles.filterLabel}>Filter by Vendor:</Text>
+                  <View style={[styles.dropdownWrap, { zIndex: -1 }]}>
+                    <TextInput
+                      style={styles.ddInput}
+                      placeholder="Search Vendor..."
+                      value={vendorQuery}
+                      onChangeText={handleVendorSearch}
+                      onFocus={() => setShowVendorDropdown(true)}
+                    />
+                    {showVendorDropdown && (
+                      <ScrollView
+                        nestedScrollEnabled={true}
+                        style={styles.ddList}
                       >
-                        <Text style={styles.ddText}>{i.full_name}</Text>
-                      </TouchableOpacity>
-                    ))}
+                        <TouchableOpacity
+                          style={styles.ddItem}
+                          onPress={() => {
+                            setSelectedVendor(null);
+                            setVendorQuery("");
+                            setShowVendorDropdown(false);
+                          }}
+                        >
+                          <Text
+                            style={[styles.ddText, { fontStyle: "italic" }]}
+                          >
+                            All Vendors
+                          </Text>
+                        </TouchableOpacity>
+                        {filteredVendors.slice(0, 5).map((i) => (
+                          <TouchableOpacity
+                            key={i.id}
+                            style={styles.ddItem}
+                            onPress={() => {
+                              setSelectedVendor(i.id);
+                              setVendorQuery(i.full_name);
+                              setShowVendorDropdown(false);
+                            }}
+                          >
+                            <Text style={styles.ddText}>{i.full_name}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    )}
                   </View>
-                )}
-              </View>
+                </>
+              )}
 
               <View style={styles.modalButtons}>
                 <TouchableOpacity
                   style={styles.applyBtn}
-                  onPress={() => {
-                    loadData();
-                    setFilterModalVisible(false);
-                  }}
-                >
-                  <Text style={styles.btnText}>Apply Filters</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.cancelBtn}
                   onPress={() => setFilterModalVisible(false)}
                 >
-                  <Text style={styles.cancelText}>Close</Text>
+                  <Text style={styles.btnText}>Apply / Close</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </TouchableWithoutFeedback>
+      </Modal>
+
+      <Modal visible={viewerVisible} transparent={true} animationType="fade">
+        <View style={styles.viewerContainer}>
+          <TouchableOpacity
+            style={styles.viewerClose}
+            onPress={() => setViewerVisible(false)}
+          >
+            <Icon name="close" size={32} color="#fff" />
+          </TouchableOpacity>
+          {currentViewImage && (
+            <Image
+              source={{ uri: currentViewImage }}
+              style={styles.viewerImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
       </Modal>
     </View>
   );
@@ -577,7 +659,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.2)",
     borderRadius: 20,
   },
-
   tabBar: {
     flexDirection: "row",
     marginHorizontal: 20,
@@ -599,9 +680,7 @@ const styles = StyleSheet.create({
   },
   tabText: { color: "rgba(255,255,255,0.8)", fontWeight: "600", fontSize: 14 },
   tabTextActive: { color: "#76B7EF", fontWeight: "bold" },
-
   contentContainer: { flex: 1 },
-
   analyticsScroll: { padding: 16 },
   chartContainer: {
     backgroundColor: "#fff",
@@ -627,7 +706,6 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 12, color: "#666", marginBottom: 4 },
   statValue: { fontSize: 20, fontWeight: "bold", color: "#76B7EF" },
   chart: { marginVertical: 8, borderRadius: 16 },
-
   searchContainer: {
     flexDirection: "row",
     padding: 16,
@@ -661,11 +739,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 12,
     flexDirection: "row",
-    height: 90,
+    height: 105,
     overflow: "hidden",
     elevation: 2,
   },
-  entryImageCompact: { width: 90, height: "100%", backgroundColor: "#eee" },
+  entryImageCompact: { width: 95, height: "100%", backgroundColor: "#eee" },
   entryContentCompact: {
     flex: 1,
     padding: 10,
@@ -685,9 +763,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: 4,
   },
   entryDateCompact: { fontSize: 11, color: "#999" },
-  entryRoleCompact: { fontSize: 11, color: "#76B7EF", fontWeight: "600" },
+  entryRoleCompact: { fontSize: 11, color: "#555", marginTop: 4 },
+
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+  badgePending: { backgroundColor: "#fff3cd" },
+  badgeVerified: { backgroundColor: "#d4edda" },
+  statusText: { fontSize: 10, fontWeight: "bold" },
+  textPending: { color: "#856404" },
+  textVerified: { color: "#155724" },
+
+  verifyBtnSmall: {
+    backgroundColor: "#4CAF50",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  verifyBtnText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
 
   emptyContainer: { alignItems: "center", marginTop: 80 },
   emptyText: { color: "#999", marginTop: 10 },
@@ -703,7 +797,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 6,
   },
-
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -740,7 +833,6 @@ const styles = StyleSheet.create({
   sortOptionActive: { backgroundColor: "#76B7EF" },
   sortText: { color: "#76B7EF", fontSize: 13, fontWeight: "600" },
   sortTextActive: { color: "#fff" },
-
   dropdownWrap: { position: "relative", zIndex: 10 },
   ddInput: {
     borderWidth: 1,
@@ -764,7 +856,6 @@ const styles = StyleSheet.create({
   },
   ddItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: "#eee" },
   ddText: { fontSize: 14, color: "#333" },
-
   modalButtons: { flexDirection: "row", marginTop: 24, gap: 12 },
   applyBtn: {
     flex: 1,
@@ -773,17 +864,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
-  cancelBtn: {
+  btnText: { color: "#fff", fontWeight: "bold" },
+  viewerContainer: {
     flex: 1,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#76B7EF",
-    padding: 14,
-    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
     alignItems: "center",
   },
-  btnText: { color: "#fff", fontWeight: "bold" },
-  cancelText: { color: "#76B7EF", fontWeight: "bold" },
+  viewerClose: { position: "absolute", top: 50, right: 20, zIndex: 10 },
+  viewerImage: { width: "100%", height: "80%" },
 });
 
 export default DashboardScreen;

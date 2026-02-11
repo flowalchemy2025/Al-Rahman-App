@@ -233,3 +233,18 @@ export const getAnalyticsData = async (days = 10) => {
     return { success: false, error: error.message };
   }
 };
+
+export const verifyPurchaseEntry = async (id) => {
+  try {
+    const { data, error } = await supabase
+      .from("purchase_entries")
+      .update({ status: "Verified", updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select();
+
+    if (error) throw error;
+    return { success: true, data: data[0] };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};

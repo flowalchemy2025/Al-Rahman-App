@@ -9,6 +9,9 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { updatePurchaseEntry, deletePurchaseEntry } from "../services/supabase";
@@ -18,22 +21,21 @@ import { MaterialIcons } from "@expo/vector-icons";
 const EditEntryScreen = ({ navigation, route }) => {
   const { entry, user } = route.params;
   const [loading, setLoading] = useState(false);
-
-  // State for images
   const [images, setImages] = useState([]);
-
   const [itemName, setItemName] = useState(entry.item_name);
   const [quantity, setQuantity] = useState(entry.quantity);
   const [price, setPrice] = useState(entry.price.toString());
 
+  // Image Viewer State
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [currentViewImage, setCurrentViewImage] = useState(null);
+
   useEffect(() => {
-    // Parse existing images
     if (entry.image_url) {
       const urls = entry.image_url.split(",");
       const filenames = entry.image_filename
         ? entry.image_filename.split(",")
         : [];
-
       const initialImages = urls.map((url, index) => ({
         uri: url,
         filename: filenames[index] || null,
@@ -44,53 +46,34 @@ const EditEntryScreen = ({ navigation, route }) => {
   }, []);
 
   const handleImagePicker = () => {
-    Alert.alert(
-      "Add Images",
-      "Choose an option",
-      [
-        {
-          text: "Take Photo",
-          onPress: () => openCamera(),
-        },
-        {
-          text: "Choose from Library",
-          onPress: () => openLibrary(),
-        },
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-      ],
-      { cancelable: true },
-    );
+    Alert.alert("Add Images", "Choose an option", [
+      { text: "Take Photo", onPress: () => openCamera() },
+      { text: "Choose from Library", onPress: () => openLibrary() },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
   const openCamera = async () => {
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false, // Disabled crop
+        allowsEditing: false,
         quality: 0.8,
       });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
+      if (!result.canceled && result.assets) {
         setImages([...images, { uri: result.assets[0].uri, isNew: true }]);
       }
     } catch (error) {
       Alert.alert("Error", "Failed to open camera");
-      console.error(error);
     }
   };
 
   const openLibrary = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true, // Multiple Select
+        allowsMultipleSelection: true,
         allowsEditing: false,
         quality: 0.8,
       });
-
       if (!result.canceled && result.assets) {
         const newImages = result.assets.map((asset) => ({
           uri: asset.uri,
@@ -100,31 +83,27 @@ const EditEntryScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       Alert.alert("Error", "Failed to open image library");
-      console.error(error);
     }
   };
 
-  const removeImage = (indexToRemove) => {
+  const removeImage = (indexToRemove) =>
     setImages(images.filter((_, index) => index !== indexToRemove));
+
+  const openImageViewer = (uri) => {
+    setCurrentViewImage(uri);
+    setViewerVisible(true);
   };
 
   const handleUpdate = async () => {
-    // Validation
-    if (images.length === 0) {
-      Alert.alert("Error", "Please add at least one image");
-      return;
-    }
-    if (!itemName.trim()) {
-      Alert.alert("Error", "Please enter item name");
-      return;
-    }
-    if (!quantity.trim()) {
-      Alert.alert("Error", "Please enter quantity");
-      return;
-    }
-    if (!price.trim() || isNaN(parseFloat(price))) {
-      Alert.alert("Error", "Please enter a valid price");
-      return;
+    if (images.length === 0)
+      return Alert.alert("Error", "Please add at least one image");
+    if (
+      !itemName.trim() ||
+      !quantity.trim() ||
+      !price.trim() ||
+      isNaN(parseFloat(price))
+    ) {
+      return Alert.alert("Error", "Please check your inputs");
     }
 
     setLoading(true);
@@ -133,27 +112,19 @@ const EditEntryScreen = ({ navigation, route }) => {
       const finalUrls = [];
       const finalFilenames = [];
 
-      // Process images
       for (const img of images) {
         if (img.isNew) {
-          // Upload new image
           const imageResult = await uploadImage(img.uri);
           if (!imageResult.success)
             throw new Error("Failed to upload new image");
-
           finalUrls.push(imageResult.url);
           finalFilenames.push(imageResult.filename);
         } else {
-          // Keep existing image
           finalUrls.push(img.uri);
           if (img.filename) finalFilenames.push(img.filename);
         }
       }
 
-      // Note: We are not deleting removed images from the server to prevent accidental data loss
-      // if logic fails. They will just become orphaned, which is safer.
-
-      // Prepare update data
       const updateData = {
         item_name: itemName.trim(),
         quantity: quantity.trim(),
@@ -163,21 +134,14 @@ const EditEntryScreen = ({ navigation, route }) => {
         updated_at: new Date().toISOString(),
       };
 
-      // Update entry in Supabase
       const result = await updatePurchaseEntry(entry.id, updateData);
-
       setLoading(false);
 
-      if (result.success) {
+      if (result.success)
         Alert.alert("Success", "Item updated successfully!", [
-          {
-            text: "OK",
-            onPress: () => navigation.goBack(),
-          },
+          { text: "OK", onPress: () => navigation.goBack() },
         ]);
-      } else {
-        throw new Error(result.error);
-      }
+      else throw new Error(result.error);
     } catch (error) {
       setLoading(false);
       Alert.alert("Error", error.message || "Failed to update item");
@@ -185,50 +149,35 @@ const EditEntryScreen = ({ navigation, route }) => {
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      "Delete Item",
-      "Are you sure you want to delete this item? This action cannot be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
+    Alert.alert("Delete Item", "Are you sure you want to delete this item?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          setLoading(true);
+          try {
+            const result = await deletePurchaseEntry(entry.id);
+            setLoading(false);
+            if (result.success)
+              Alert.alert("Success", "Item deleted!", [
+                { text: "OK", onPress: () => navigation.goBack() },
+              ]);
+            else throw new Error(result.error);
+          } catch (error) {
+            setLoading(false);
+            Alert.alert("Error", error.message || "Failed to delete item");
+          }
         },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setLoading(true);
-
-            try {
-              // Delete entries from Supabase
-              // (Optional: Delete images from server loop here using entry.image_filename)
-
-              const result = await deletePurchaseEntry(entry.id);
-
-              setLoading(false);
-
-              if (result.success) {
-                Alert.alert("Success", "Item deleted successfully!", [
-                  {
-                    text: "OK",
-                    onPress: () => navigation.goBack(),
-                  },
-                ]);
-              } else {
-                throw new Error(result.error);
-              }
-            } catch (error) {
-              setLoading(false);
-              Alert.alert("Error", error.message || "Failed to delete item");
-            }
-          },
-        },
-      ],
-    );
+      },
+    ]);
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <MaterialIcons name="arrow-back" size={24} color="#333" />
@@ -239,8 +188,10 @@ const EditEntryScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.content}>
-        {/* Multi-Image Section */}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.imageSection}>
           <Text style={styles.label}>Images ({images.length})</Text>
           <ScrollView
@@ -248,7 +199,6 @@ const EditEntryScreen = ({ navigation, route }) => {
             showsHorizontalScrollIndicator={false}
             style={styles.imageList}
           >
-            {/* Add Button */}
             <TouchableOpacity
               style={styles.addMoreBtn}
               onPress={handleImagePicker}
@@ -257,10 +207,11 @@ const EditEntryScreen = ({ navigation, route }) => {
               <Text style={styles.addMoreText}>Add</Text>
             </TouchableOpacity>
 
-            {/* Image List */}
             {images.map((img, index) => (
               <View key={index} style={styles.thumbnailContainer}>
-                <Image source={{ uri: img.uri }} style={styles.thumbnail} />
+                <TouchableOpacity onPress={() => openImageViewer(img.uri)}>
+                  <Image source={{ uri: img.uri }} style={styles.thumbnail} />
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.removeBtn}
                   onPress={() => removeImage(index)}
@@ -277,43 +228,37 @@ const EditEntryScreen = ({ navigation, route }) => {
           </ScrollView>
         </View>
 
-        {/* Item Name */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Item Name *</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter item name"
             value={itemName}
             onChangeText={setItemName}
           />
         </View>
-
-        {/* Quantity */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Quantity *</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g., 5 kg, 10 pieces"
             value={quantity}
             onChangeText={setQuantity}
           />
         </View>
-
-        {/* Price */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Price (₹) *</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter price"
             value={price}
             onChangeText={setPrice}
             keyboardType="decimal-pad"
           />
         </View>
 
-        {/* Entry Info */}
         <View style={styles.infoContainer}>
           <Text style={styles.infoLabel}>Entry Information</Text>
+          <Text style={styles.infoText}>
+            Status: {entry.status || "Verified"}
+          </Text>
           {user.role !== "Worker" && entry.worker && (
             <Text style={styles.infoText}>
               Worker: {entry.worker.full_name}
@@ -329,7 +274,6 @@ const EditEntryScreen = ({ navigation, route }) => {
           </Text>
         </View>
 
-        {/* Update Button */}
         <TouchableOpacity
           style={styles.updateButton}
           onPress={handleUpdate}
@@ -341,16 +285,32 @@ const EditEntryScreen = ({ navigation, route }) => {
             <Text style={styles.updateButtonText}>Update Item</Text>
           )}
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+
+      {/* Image Viewer Modal */}
+      <Modal visible={viewerVisible} transparent={true} animationType="fade">
+        <View style={styles.viewerContainer}>
+          <TouchableOpacity
+            style={styles.viewerClose}
+            onPress={() => setViewerVisible(false)}
+          >
+            <MaterialIcons name="close" size={32} color="#fff" />
+          </TouchableOpacity>
+          {currentViewImage && (
+            <Image
+              source={{ uri: currentViewImage }}
+              style={styles.viewerImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -361,23 +321,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 50,
-  },
-  // Image List Styles
-  imageSection: {
-    marginBottom: 20,
-  },
-  imageList: {
-    flexDirection: "row",
-    paddingVertical: 10,
-  },
+  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#333" },
+  content: { padding: 16, paddingBottom: 50 },
+  imageSection: { marginBottom: 20 },
+  imageList: { flexDirection: "row", paddingVertical: 10 },
   addMoreBtn: {
     width: 100,
     height: 100,
@@ -390,15 +337,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
     backgroundColor: "#fff",
   },
-  addMoreText: {
-    color: "#76B7EF",
-    fontWeight: "600",
-    marginTop: 4,
-  },
-  thumbnailContainer: {
-    position: "relative",
-    marginRight: 12,
-  },
+  addMoreText: { color: "#76B7EF", fontWeight: "600", marginTop: 4 },
+  thumbnailContainer: { position: "relative", marginRight: 12 },
   thumbnail: {
     width: 100,
     height: 100,
@@ -430,21 +370,9 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
   },
-  newBadgeText: {
-    color: "#fff",
-    fontSize: 10,
-    fontWeight: "bold",
-  },
-  // Input Styles
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
+  newBadgeText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
+  inputContainer: { marginBottom: 20 },
+  label: { fontSize: 16, fontWeight: "600", color: "#333", marginBottom: 8 },
   input: {
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -468,28 +396,24 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 8,
   },
-  infoText: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 4,
-  },
+  infoText: { fontSize: 14, color: "#666", marginBottom: 4 },
   updateButton: {
     backgroundColor: "#76B7EF",
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
     elevation: 4,
   },
-  updateButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
+  updateButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  viewerContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
   },
+  viewerClose: { position: "absolute", top: 50, right: 20, zIndex: 10 },
+  viewerImage: { width: "100%", height: "80%" },
 });
 
 export default EditEntryScreen;

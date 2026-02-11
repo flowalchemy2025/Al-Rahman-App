@@ -10,6 +10,9 @@ import {
   ActivityIndicator,
   Image,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Modal,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { addPurchaseEntry, getAllUsers } from "../services/supabase";
@@ -31,6 +34,10 @@ const AddItemScreen = ({ navigation, route }) => {
   const [query, setQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // Image Viewer State
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [currentViewImage, setCurrentViewImage] = useState(null);
+
   useEffect(() => {
     loadUsers();
     requestPermissions();
@@ -41,7 +48,6 @@ const AddItemScreen = ({ navigation, route }) => {
       await ImagePicker.requestCameraPermissionsAsync();
     const { status: mediaStatus } =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
-
     if (cameraStatus !== "granted" || mediaStatus !== "granted") {
       Alert.alert(
         "Permissions Required",
@@ -54,8 +60,18 @@ const AddItemScreen = ({ navigation, route }) => {
     const roleToLoad = user.role === "Worker" ? "Vendor" : "Worker";
     const result = await getAllUsers(roleToLoad);
     if (result.success) {
-      setAvailableUsers(result.data);
-      setFilteredUsers(result.data);
+      // Add the bypass option at the top of the list
+      const bypassOption = {
+        id: "BYPASS",
+        full_name:
+          user.role === "Worker"
+            ? "Local Shop (Unregistered)"
+            : "No Specific Worker",
+        role: "System",
+      };
+      const usersList = [bypassOption, ...result.data];
+      setAvailableUsers(usersList);
+      setFilteredUsers(usersList);
     }
   };
 
@@ -63,10 +79,11 @@ const AddItemScreen = ({ navigation, route }) => {
     setQuery(text);
     setSelectedUser(null);
     if (text) {
-      const filtered = availableUsers.filter((u) =>
-        u.full_name.toLowerCase().includes(text.toLowerCase()),
+      setFilteredUsers(
+        availableUsers.filter((u) =>
+          u.full_name.toLowerCase().includes(text.toLowerCase()),
+        ),
       );
-      setFilteredUsers(filtered);
     } else {
       setFilteredUsers(availableUsers);
     }
@@ -81,70 +98,59 @@ const AddItemScreen = ({ navigation, route }) => {
   };
 
   const handleImagePicker = () => {
-    Alert.alert(
-      "Add Images",
-      "Choose an option",
-      [
-        { text: "Take Photo", onPress: openCamera },
-        { text: "Select Multiple from Library", onPress: openLibrary },
-        { text: "Cancel", style: "cancel" },
-      ],
-      { cancelable: true },
-    );
+    Alert.alert("Add Images", "Choose an option", [
+      {
+        text: "Take Photo",
+        onPress: async () => {
+          const res = await ImagePicker.launchCameraAsync({
+            allowsEditing: false,
+            quality: 0.8,
+          });
+          if (!res.canceled && res.assets)
+            setSelectedImages([...selectedImages, res.assets[0].uri]);
+        },
+      },
+      {
+        text: "Select from Library",
+        onPress: async () => {
+          const res = await ImagePicker.launchImageLibraryAsync({
+            allowsMultipleSelection: true,
+            allowsEditing: false,
+            quality: 0.8,
+          });
+          if (!res.canceled && res.assets)
+            setSelectedImages([
+              ...selectedImages,
+              ...res.assets.map((a) => a.uri),
+            ]);
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
-  const openCamera = async () => {
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
-        quality: 0.8,
-      });
+  const removeImage = (index) =>
+    setSelectedImages(selectedImages.filter((_, i) => i !== index));
 
-      if (!result.canceled && result.assets && result.assets[0]) {
-        setSelectedImages([...selectedImages, result.assets[0].uri]);
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to open camera");
-    }
-  };
-
-  const openLibrary = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true,
-        selectionLimit: 5,
-        allowsEditing: false,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets) {
-        const newUris = result.assets.map((asset) => asset.uri);
-        setSelectedImages([...selectedImages, ...newUris]);
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to open image library");
-    }
-  };
-
-  const removeImage = (indexToRemove) => {
-    setSelectedImages(
-      selectedImages.filter((_, index) => index !== indexToRemove),
-    );
+  const openImageViewer = (uri) => {
+    setCurrentViewImage(uri);
+    setViewerVisible(true);
   };
 
   const handleSubmit = async () => {
     if (selectedImages.length === 0)
-      return Alert.alert("Error", "Please add at least one image");
-    if (!itemName.trim()) return Alert.alert("Error", "Please enter item name");
-    if (!quantity.trim()) return Alert.alert("Error", "Please enter quantity");
-    if (!price.trim() || isNaN(parseFloat(price)))
-      return Alert.alert("Error", "Please enter a valid price");
+      return Alert.alert("Error", "Please add an image");
+    if (
+      !itemName.trim() ||
+      !quantity.trim() ||
+      !price.trim() ||
+      isNaN(parseFloat(price))
+    )
+      return Alert.alert("Error", "Please fill all fields correctly");
     if (!selectedUser)
       return Alert.alert(
         "Error",
-        `Please select a valid ${user.role === "Worker" ? "vendor" : "worker"}`,
+        "Please select a vendor/worker from the list",
       );
 
     setLoading(true);
@@ -155,13 +161,14 @@ const AddItemScreen = ({ navigation, route }) => {
 
       const uploadedUrls = [];
       const uploadedFilenames = [];
-
       results.forEach((res) => {
-        if (!res.success)
-          throw new Error(res.error || "Failed to upload image");
+        if (!res.success) throw new Error("Image upload failed");
         uploadedUrls.push(res.url);
         uploadedFilenames.push(res.filename);
       });
+
+      // Logic: If BYPASS is selected, it's instantly verified and relational ID is null
+      const isBypass = selectedUser === "BYPASS";
 
       const entryData = {
         item_name: itemName.trim(),
@@ -170,15 +177,16 @@ const AddItemScreen = ({ navigation, route }) => {
         image_url: uploadedUrls.join(","),
         image_filename: uploadedFilenames.join(","),
         created_at: new Date().toISOString(),
-        created_by: user.id, // IMPORTANT: Tracking who created the item
+        created_by: user.id,
+        status: isBypass ? "Verified" : "Pending",
       };
 
       if (user.role === "Worker") {
         entryData.worker_id = user.id;
-        entryData.vendor_id = selectedUser;
+        entryData.vendor_id = isBypass ? null : selectedUser;
       } else if (user.role === "Vendor") {
         entryData.vendor_id = user.id;
-        entryData.worker_id = selectedUser;
+        entryData.worker_id = isBypass ? null : selectedUser;
       }
 
       const result = await addPurchaseEntry(entryData);
@@ -188,17 +196,18 @@ const AddItemScreen = ({ navigation, route }) => {
         Alert.alert("Success", "Item added successfully!", [
           { text: "OK", onPress: () => navigation.goBack() },
         ]);
-      } else {
-        throw new Error(result.error);
-      }
+      } else throw new Error(result.error);
     } catch (error) {
       setLoading(false);
-      Alert.alert("Error", error.message || "Failed to add item");
+      Alert.alert("Error", error.message);
     }
   };
 
   return (
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <MaterialIcons name="arrow-back" size={24} color="#333" />
@@ -207,7 +216,10 @@ const AddItemScreen = ({ navigation, route }) => {
         <View style={{ width: 24 }} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.imageSection}>
           <Text style={styles.label}>Images ({selectedImages.length})</Text>
           <ScrollView
@@ -224,7 +236,9 @@ const AddItemScreen = ({ navigation, route }) => {
             </TouchableOpacity>
             {selectedImages.map((uri, index) => (
               <View key={index} style={styles.thumbnailContainer}>
-                <Image source={{ uri: uri }} style={styles.thumbnail} />
+                <TouchableOpacity onPress={() => openImageViewer(uri)}>
+                  <Image source={{ uri }} style={styles.thumbnail} />
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.removeBtn}
                   onPress={() => removeImage(index)}
@@ -240,34 +254,30 @@ const AddItemScreen = ({ navigation, route }) => {
           <Text style={styles.label}>Item Name *</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter item name"
             value={itemName}
             onChangeText={setItemName}
           />
         </View>
-
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Quantity *</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g., 5 kg"
             value={quantity}
             onChangeText={setQuantity}
           />
         </View>
-
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Price (₹) *</Text>
           <TextInput
             style={styles.input}
-            placeholder="Enter price"
             value={price}
             onChangeText={setPrice}
             keyboardType="decimal-pad"
           />
         </View>
 
-        <View style={[styles.inputContainer, { zIndex: 1000 }]}>
+        {/* Enhanced Dropdown */}
+        <View style={[styles.inputContainer, { zIndex: 10 }]}>
           <Text style={styles.label}>
             Select {user.role === "Worker" ? "Vendor" : "Worker"} *
           </Text>
@@ -288,22 +298,40 @@ const AddItemScreen = ({ navigation, route }) => {
           </View>
           {showDropdown && (
             <View style={styles.dropdownList}>
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map((item) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.dropdownItem}
-                    onPress={() => handleSelectUser(item)}
-                  >
-                    <Text style={styles.dropdownText}>{item.full_name}</Text>
-                    <Text style={styles.dropdownSubText}>{item.role}</Text>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <View style={styles.dropdownItem}>
-                  <Text style={styles.dropdownText}>No users found</Text>
-                </View>
-              )}
+              <ScrollView
+                nestedScrollEnabled={true}
+                keyboardShouldPersistTaps="handled"
+                style={{ maxHeight: 200 }}
+              >
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.dropdownItem}
+                      onPress={() => handleSelectUser(item)}
+                    >
+                      <Text
+                        style={[
+                          styles.dropdownText,
+                          item.id === "BYPASS" && {
+                            fontWeight: "bold",
+                            color: "#76B7EF",
+                          },
+                        ]}
+                      >
+                        {item.full_name}
+                      </Text>
+                      {item.role !== "System" && (
+                        <Text style={styles.dropdownSubText}>{item.role}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.dropdownItem}>
+                    <Text style={styles.dropdownText}>No users found</Text>
+                  </View>
+                )}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -319,8 +347,27 @@ const AddItemScreen = ({ navigation, route }) => {
             <Text style={styles.submitButtonText}>Add Item</Text>
           )}
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+
+      {/* Image Viewer Modal */}
+      <Modal visible={viewerVisible} transparent={true} animationType="fade">
+        <View style={styles.viewerContainer}>
+          <TouchableOpacity
+            style={styles.viewerClose}
+            onPress={() => setViewerVisible(false)}
+          >
+            <MaterialIcons name="close" size={32} color="#fff" />
+          </TouchableOpacity>
+          {currentViewImage && (
+            <Image
+              source={{ uri: currentViewImage }}
+              style={styles.viewerImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -387,15 +434,16 @@ const styles = StyleSheet.create({
   searchContainer: { position: "relative", justifyContent: "center" },
   searchIcon: { position: "absolute", right: 12 },
   dropdownList: {
+    position: "absolute",
+    top: 55,
+    left: 0,
+    right: 0,
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#ddd",
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
-    maxHeight: 200,
+    borderRadius: 8,
     elevation: 5,
-    marginTop: -4,
+    zIndex: 1000,
   },
   dropdownItem: {
     padding: 12,
@@ -409,14 +457,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: "center",
-    marginTop: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    marginTop: 20,
     elevation: 4,
   },
   submitButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  viewerContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  viewerClose: { position: "absolute", top: 50, right: 20, zIndex: 10 },
+  viewerImage: { width: "100%", height: "80%" },
 });
 
 export default AddItemScreen;
