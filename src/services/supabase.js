@@ -248,3 +248,69 @@ export const verifyPurchaseEntry = async (id) => {
     return { success: false, error: error.message };
   }
 };
+// ... existing imports
+
+export const updateVendorComment = async (id, comment) => {
+  try {
+    const { data, error } = await supabase
+      .from("purchase_entries")
+      .update({ vendor_comment: comment })
+      .eq("id", id)
+      .select();
+
+    if (error) throw error;
+    return { success: true, data: data[0] };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+// ... keep existing functions
+// Add these exports to your existing supabase.js
+
+export const addPayment = async (paymentData) => {
+  try {
+    const { data, error } = await supabase
+      .from("payments")
+      .insert([paymentData])
+      .select();
+    if (error) throw error;
+    return { success: true, data: data[0] };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+export const getPayments = async (filters = {}) => {
+  try {
+    let query = supabase
+      .from("payments")
+      .select(
+        `*, vendor:vendor_id(id, full_name), worker:worker_id(id, full_name)`,
+      );
+    if (filters.vendorId) query = query.eq("vendor_id", filters.vendorId);
+    if (filters.startDate) query = query.gte("created_at", filters.startDate);
+    if (filters.endDate) query = query.lte("created_at", filters.endDate);
+
+    query = query.order("created_at", { ascending: false });
+    const { data, error } = await query;
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+export const updatePaymentVendorComment = async (id, comment) => {
+  try {
+    const { data, error } = await supabase
+      .from("payments")
+      .update({ vendor_comment: comment })
+      .eq("id", id)
+      .select();
+    if (error) throw error;
+    return { success: true, data: data[0] };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
