@@ -4,11 +4,13 @@ import { createStackNavigator } from "@react-navigation/stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ActivityIndicator, View } from "react-native";
 import { supabase } from "../services/supabase"; // <-- Add this import
-
+import UserManagementScreen from "../screens/UserManagementScreen";
+import ItemManagementScreen from "../screens/ItemManagementScreen";
 import LoginScreen from "../screens/LoginScreen";
 import DashboardScreen from "../screens/DashboardScreen";
 import AddItemScreen from "../screens/AddItemScreen";
 import EditEntryScreen from "../screens/EditEntryScreen";
+import ViewEntryScreen from "../screens/ViewEntryScreen";
 
 const Stack = createStackNavigator();
 
@@ -71,9 +73,12 @@ const AppNavigator = () => {
           headerShown: false,
         }}
       >
+        <Stack.Screen name="UserManagement" component={UserManagementScreen} />
+        <Stack.Screen name="ItemManagement" component={ItemManagementScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
         <Stack.Screen name="AddItem" component={AddItemScreen} />
+        <Stack.Screen name="ViewEntry" component={ViewEntryScreen} />
         <Stack.Screen name="EditEntry" component={EditEntryScreen} />
       </Stack.Navigator>
     </NavigationContainer>

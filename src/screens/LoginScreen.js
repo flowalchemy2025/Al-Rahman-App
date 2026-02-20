@@ -5,40 +5,28 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { signIn, signUp } from "../services/supabase";
+import { signIn } from "../services/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const LoginScreen = ({ navigation }) => {
-  const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("Branch");
 
-  // Login fields
-  const [loginUsername, setLoginUsername] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-
-  // Register fields
-  const [fullName, setFullName] = useState("");
-  const [mobileNumber, setMobileNumber] = useState("");
-  const [registerUsername, setRegisterUsername] = useState("");
-  const [registerPassword, setRegisterPassword] = useState("");
-  const [registerRole, setRegisterRole] = useState("Worker");
-
-  const roles = ["Worker", "Vendor"];
+  const roles = ["Super Admin", "Branch", "Vendor"];
 
   const handleLogin = async () => {
-    if (!loginUsername || !loginPassword) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
+    if (!username || !password)
+      return Alert.alert("Error", "Please enter credentials");
 
     setLoading(true);
-    const result = await signIn(loginUsername, loginPassword);
+    const result = await signIn(username, password, role);
     setLoading(false);
 
     if (result.success) {
@@ -49,222 +37,76 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  const handleRegister = async () => {
-    if (!fullName || !mobileNumber || !registerUsername || !registerPassword) {
-      Alert.alert("Error", "Please fill in all fields");
-      return;
-    }
-
-    if (registerRole === "Vendor" && !shopName) {
-      Alert.alert("Error", "Please enter your shop name");
-      return;
-    }
-
-    let finalFullName = fullName.trim();
-    if  (registerRole === "Vendor") {
-      finalFullName = `${fullName.trim()} (${shopName.trim()})`;
-    }
-
-    if (mobileNumber.length !== 10) {
-      Alert.alert("Error", "Please enter a valid 10-digit mobile number");
-      return;
-    }
-
-    setLoading(true);
-    const result = await signUp(
-      finalFullName,
-      mobileNumber,
-      registerUsername,
-      registerPassword,
-      registerRole,
-    );
-    setLoading(false);
-
-    if (result.success) {
-      Alert.alert("Success", "Registration successful! Please login.", [
-        { text: "OK", onPress: () => setIsLogin(true) },
-      ]);
-      // Clear fields
-      setFullName("");
-      setMobileNumber("");
-      setRegisterUsername("");
-      setRegisterPassword("");
-    } else {
-      Alert.alert("Registration Failed", result.error);
-    }
-  };
-  const [shopName, setShopName] = useState("");
-  const RoleSelector = ({ selectedRole, onSelect }) => (
-    <View style={styles.roleContainer}>
-      <Text style={styles.label}>Select Role:</Text>
-      <View style={styles.roleButtons}>
-        {roles.map((role) => (
-          <TouchableOpacity
-            key={role}
-            style={[
-              styles.roleButton,
-              selectedRole === role && styles.roleButtonActive,
-            ]}
-            onPress={() => onSelect(role)}
-          >
-            <Text
-              style={[
-                styles.roleButtonText,
-                selectedRole === role && styles.roleButtonTextActive,
-              ]}
-            >
-              {role}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Restaurant Purchase Manager</Text>
-          <Text style={styles.subtitle}>Track your daily purchases</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Restaurant Purchase Manager</Text>
+        <Text style={styles.subtitle}>Secure Access Only</Text>
+      </View>
+
+      <View style={styles.form}>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Username or Mobile</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter username"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
         </View>
 
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, isLogin && styles.tabActive]}
-            onPress={() => setIsLogin(true)}
-          >
-            <Text style={[styles.tabText, isLogin && styles.tabTextActive]}>
-              Login
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, !isLogin && styles.tabActive]}
-            onPress={() => setIsLogin(false)}
-          >
-            <Text style={[styles.tabText, !isLogin && styles.tabTextActive]}>
-              Register
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
         </View>
 
-        {isLogin ? (
-          // Login Form
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Username or Mobile Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter username or mobile number"
-                value={loginUsername}
-                onChangeText={setLoginUsername}
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter password"
-                value={loginPassword}
-                onChangeText={setLoginPassword}
-                secureTextEntry
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Login</Text>
-              )}
-            </TouchableOpacity>
+        <View style={styles.roleContainer}>
+          <Text style={styles.label}>Select Role:</Text>
+          <View style={styles.roleButtons}>
+            {roles.map((r) => (
+              <TouchableOpacity
+                key={r}
+                style={[
+                  styles.roleButton,
+                  role === r && styles.roleButtonActive,
+                ]}
+                onPress={() => setRole(r)}
+              >
+                <Text
+                  style={[
+                    styles.roleButtonText,
+                    role === r && styles.roleButtonTextActive,
+                  ]}
+                >
+                  {r}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
-        ) : (
-          // Register Form
-          <View style={styles.form}>
-            <RoleSelector
-              selectedRole={registerRole}
-              onSelect={setRegisterRole}
-            />
+        </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter full name"
-                value={fullName}
-                onChangeText={setFullName}
-              />
-            </View>
-
-            {registerRole === "Vendor" && (
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Shop Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter shop name"
-                value={shopName}
-                onChangeText={setShopName}
-              />
-            </View>)}
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Mobile Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter 10-digit mobile number"
-                value={mobileNumber}
-                onChangeText={setMobileNumber}
-                keyboardType="phone-pad"
-                maxLength={10}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Username</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Choose a username"
-                value={registerUsername}
-                onChangeText={setRegisterUsername}
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Choose a password"
-                value={registerPassword}
-                onChangeText={setRegisterPassword}
-                secureTextEntry
-              />
-            </View>
-
-            <TouchableOpacity
-              style={styles.button}
-              onPress={handleRegister}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Register</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Login</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 };
@@ -273,106 +115,45 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
-  },
-  scrollContent: {
-    flexGrow: 1,
+    justifyContent: "center",
     padding: 20,
   },
-  header: {
-    alignItems: "center",
-    marginTop: 40,
-    marginBottom: 30,
-  },
+  header: { alignItems: "center", marginBottom: 30 },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "bold",
     color: "#333",
     textAlign: "center",
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-    marginTop: 8,
-  },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 4,
-    marginBottom: 20,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  tabActive: {
-    backgroundColor: "#76B7EF",
-  },
-  tabText: {
-    fontSize: 16,
-    color: "#666",
-    fontWeight: "600",
-  },
-  tabTextActive: {
-    color: "#fff",
-  },
+  subtitle: { fontSize: 16, color: "#666", marginTop: 8 },
   form: {
     backgroundColor: "#fff",
     borderRadius: 10,
     padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 3,
   },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
+  inputContainer: { marginBottom: 16 },
+  label: { fontSize: 14, fontWeight: "600", color: "#333", marginBottom: 8 },
   input: {
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    padding: 12,
     fontSize: 16,
     backgroundColor: "#f9f9f9",
   },
-  roleContainer: {
-    marginBottom: 20,
-  },
-  roleButtons: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+  roleContainer: { marginBottom: 20 },
+  roleButtons: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   roleButton: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "76B7EF",
-    backgroundColor: "#fff",
+    borderColor: "#76B7EF",
   },
-  roleButtonActive: {
-    backgroundColor: "#76B7EF",
-  },
-  roleButtonText: {
-    fontSize: 14,
-    color: "#76B7EF",
-    fontWeight: "600",
-  },
-  roleButtonTextActive: {
-    color: "#fff",
-  },
+  roleButtonActive: { backgroundColor: "#76B7EF" },
+  roleButtonText: { color: "#76B7EF", fontWeight: "600" },
+  roleButtonTextActive: { color: "#fff" },
   button: {
     backgroundColor: "#76B7EF",
     borderRadius: 8,
@@ -380,11 +161,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  buttonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });
 
 export default LoginScreen;

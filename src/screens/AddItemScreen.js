@@ -9,194 +9,107 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
-  Modal,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { addPurchaseEntry, getAllUsers } from "../services/supabase";
+import { addPurchaseEntry, supabase } from "../services/supabase";
 import { uploadImage } from "../services/imageService";
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons as Icon } from "@expo/vector-icons";
+
+const UNITS = ["Kg", "Count", "Litre", "Box", "Gram", "Packet", "Dozen"];
 
 const AddItemScreen = ({ navigation, route }) => {
   const { user } = route.params;
   const [loading, setLoading] = useState(false);
-  const [selectedImages, setSelectedImages] = useState([]);
-  const [itemName, setItemName] = useState("");
+  const [imageUri, setImageUri] = useState(null);
+
+  // Form State
+  const [branchItems, setBranchItems] = useState([]);
+  const [selectedItemName, setSelectedItemName] = useState("");
+  const [customItemName, setCustomItemName] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState("Kg");
   const [price, setPrice] = useState("");
+  const [remarks, setRemarks] = useState("");
 
-  // Search Dropdown States
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [availableUsers, setAvailableUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
-  const [query, setQuery] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
-
-  // Image Viewer State
-  const [viewerVisible, setViewerVisible] = useState(false);
-  const [currentViewImage, setCurrentViewImage] = useState(null);
+  const [vendors, setVendors] = useState([]);
+  const [selectedVendor, setSelectedVendor] = useState(null);
 
   useEffect(() => {
-    loadUsers();
-    requestPermissions();
+    loadData();
   }, []);
 
-  const requestPermissions = async () => {
-    const { status: cameraStatus } =
-      await ImagePicker.requestCameraPermissionsAsync();
-    const { status: mediaStatus } =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (cameraStatus !== "granted" || mediaStatus !== "granted") {
-      Alert.alert(
-        "Permissions Required",
-        "Camera and media library permissions are required.",
-      );
-    }
+  const loadData = async () => {
+    // 1. Fetch Vendors assigned to this branch
+    const { data: vendorData } = await supabase
+      .from("users")
+      .select("*")
+      .eq("role", "Vendor")
+      .contains("branches", [user.branches[0]]); // assuming branch user has 1 branch active
+
+    if (vendorData)
+      setVendors([{ id: "BYPASS", full_name: "Local Shop" }, ...vendorData]);
+
+    // 2. Fetch Preset Items for this branch
+    const { data: itemData } = await supabase
+      .from("branch_items")
+      .select("item_name")
+      .eq("branch_name", user.branches[0]);
+
+    if (itemData) setBranchItems(itemData.map((i) => i.item_name));
   };
 
-  const loadUsers = async () => {
-    const roleToLoad = user.role === "Worker" ? "Vendor" : "Worker";
-    const result = await getAllUsers(roleToLoad);
-    if (result.success) {
-      // Add the bypass option at the top of the list
-      const bypassOption = {
-        id: "BYPASS",
-        full_name:
-          user.role === "Worker"
-            ? "Local Shop (Unregistered)"
-            : "No Specific Worker",
-        role: "System",
-      };
-      const usersList = [bypassOption, ...result.data];
-      setAvailableUsers(usersList);
-      setFilteredUsers(usersList);
-    }
-  };
+  const openCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted")
+      return Alert.alert("Required", "Camera access is needed.");
 
-  const handleSearch = (text) => {
-    setQuery(text);
-    setSelectedUser(null);
-    if (text) {
-      setFilteredUsers(
-        availableUsers.filter((u) =>
-          u.full_name.toLowerCase().includes(text.toLowerCase()),
-        ),
-      );
-    } else {
-      setFilteredUsers(availableUsers);
-    }
-    setShowDropdown(true);
-  };
-
-  const handleSelectUser = (selected) => {
-    setQuery(selected.full_name);
-    setSelectedUser(selected.id);
-    setShowDropdown(false);
-    Keyboard.dismiss();
-  };
-
-  const handleImagePicker = () => {
-    Alert.alert("Add Images", "Choose an option", [
-      {
-        text: "Take Photo",
-        onPress: async () => {
-          const res = await ImagePicker.launchCameraAsync({
-            allowsEditing: false,
-            quality: 0.8,
-          });
-          if (!res.canceled && res.assets)
-            setSelectedImages([...selectedImages, res.assets[0].uri]);
-        },
-      },
-      {
-        text: "Select from Library",
-        onPress: async () => {
-          const res = await ImagePicker.launchImageLibraryAsync({
-            allowsMultipleSelection: true,
-            allowsEditing: false,
-            quality: 0.8,
-          });
-          if (!res.canceled && res.assets)
-            setSelectedImages([
-              ...selectedImages,
-              ...res.assets.map((a) => a.uri),
-            ]);
-        },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  };
-
-  const removeImage = (index) =>
-    setSelectedImages(selectedImages.filter((_, i) => i !== index));
-
-  const openImageViewer = (uri) => {
-    setCurrentViewImage(uri);
-    setViewerVisible(true);
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets) setImageUri(result.assets[0].uri);
   };
 
   const handleSubmit = async () => {
-    if (selectedImages.length === 0)
-      return Alert.alert("Error", "Please add an image");
-    if (
-      !itemName.trim() ||
-      !quantity.trim() ||
-      !price.trim() ||
-      isNaN(parseFloat(price))
-    )
-      return Alert.alert("Error", "Please fill all fields correctly");
-    if (!selectedUser)
-      return Alert.alert(
-        "Error",
-        "Please select a vendor/worker from the list",
-      );
+    const finalItemName =
+      selectedItemName === "Others" ? customItemName : selectedItemName;
+
+    if (!imageUri)
+      return Alert.alert("Error", "Please take a photo of the bill/item");
+    if (!finalItemName.trim() || !quantity.trim() || !price.trim())
+      return Alert.alert("Error", "Please fill required fields");
+    if (!selectedVendor) return Alert.alert("Error", "Please select a vendor");
 
     setLoading(true);
-
     try {
-      const uploadPromises = selectedImages.map((uri) => uploadImage(uri));
-      const results = await Promise.all(uploadPromises);
+      const imageResult = await uploadImage(imageUri);
+      if (!imageResult.success) throw new Error("Image upload failed");
 
-      const uploadedUrls = [];
-      const uploadedFilenames = [];
-      results.forEach((res) => {
-        if (!res.success) throw new Error("Image upload failed");
-        uploadedUrls.push(res.url);
-        uploadedFilenames.push(res.filename);
-      });
-
-      // Logic: If BYPASS is selected, it's instantly verified and relational ID is null
-      const isBypass = selectedUser === "BYPASS";
+      const isBypass = selectedVendor === "BYPASS";
 
       const entryData = {
-        item_name: itemName.trim(),
+        item_name: finalItemName.trim(),
         quantity: quantity.trim(),
+        unit: unit,
         price: parseFloat(price),
-        image_url: uploadedUrls.join(","),
-        image_filename: uploadedFilenames.join(","),
-        created_at: new Date().toISOString(),
+        remarks: remarks.trim(),
+        image_url: imageResult.url,
+        image_filename: imageResult.filename,
         created_by: user.id,
+        branch_name: user.branches[0],
+        vendor_id: isBypass ? null : selectedVendor,
         status: isBypass ? "Verified" : "Pending",
       };
 
-      if (user.role === "Worker") {
-        entryData.worker_id = user.id;
-        entryData.vendor_id = isBypass ? null : selectedUser;
-      } else if (user.role === "Vendor") {
-        entryData.vendor_id = user.id;
-        entryData.worker_id = isBypass ? null : selectedUser;
-      }
-
       const result = await addPurchaseEntry(entryData);
       setLoading(false);
-
-      if (result.success) {
-        Alert.alert("Success", "Item added successfully!", [
+      if (result.success)
+        Alert.alert("Success", "Saved!", [
           { text: "OK", onPress: () => navigation.goBack() },
         ]);
-      } else throw new Error(result.error);
+      else throw new Error(result.error);
     } catch (error) {
       setLoading(false);
       Alert.alert("Error", error.message);
@@ -210,62 +123,97 @@ const AddItemScreen = ({ navigation, route }) => {
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back" size={24} color="#333" />
+          <Icon name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add New Item</Text>
+        <Text style={styles.headerTitle}>Add Purchase</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.imageSection}>
-          <Text style={styles.label}>Images ({selectedImages.length})</Text>
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Strictly Camera Only */}
+        <TouchableOpacity style={styles.imageContainer} onPress={openCamera}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.image} />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Icon name="camera-alt" size={48} color="#999" />
+              <Text style={styles.imagePlaceholderText}>Take Photo</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {/* Item Dropdown */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Item Name *</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.imageList}
+            style={{ marginBottom: 8 }}
           >
-            <TouchableOpacity
-              style={styles.addMoreBtn}
-              onPress={handleImagePicker}
-            >
-              <MaterialIcons name="add-a-photo" size={32} color="#76B7EF" />
-              <Text style={styles.addMoreText}>Add</Text>
-            </TouchableOpacity>
-            {selectedImages.map((uri, index) => (
-              <View key={index} style={styles.thumbnailContainer}>
-                <TouchableOpacity onPress={() => openImageViewer(uri)}>
-                  <Image source={{ uri }} style={styles.thumbnail} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.removeBtn}
-                  onPress={() => removeImage(index)}
+            {[...branchItems, "Others"].map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={[
+                  styles.chip,
+                  selectedItemName === item && styles.chipActive,
+                ]}
+                onPress={() => setSelectedItemName(item)}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    selectedItemName === item && styles.chipTextActive,
+                  ]}
                 >
-                  <MaterialIcons name="close" size={14} color="#fff" />
-                </TouchableOpacity>
-              </View>
+                  {item}
+                </Text>
+              </TouchableOpacity>
             ))}
           </ScrollView>
+          {selectedItemName === "Others" && (
+            <TextInput
+              style={styles.input}
+              placeholder="Enter Custom Item Name"
+              value={customItemName}
+              onChangeText={setCustomItemName}
+            />
+          )}
         </View>
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Item Name *</Text>
-          <TextInput
-            style={styles.input}
-            value={itemName}
-            onChangeText={setItemName}
-          />
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <View style={[styles.inputContainer, { flex: 1 }]}>
+            <Text style={styles.label}>Quantity *</Text>
+            <TextInput
+              style={styles.input}
+              value={quantity}
+              onChangeText={setQuantity}
+              keyboardType="numeric"
+            />
+          </View>
+
+          <View style={[styles.inputContainer, { flex: 1 }]}>
+            <Text style={styles.label}>Unit</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {UNITS.map((u) => (
+                <TouchableOpacity
+                  key={u}
+                  style={[styles.chip, unit === u && styles.chipActive]}
+                  onPress={() => setUnit(u)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      unit === u && styles.chipTextActive,
+                    ]}
+                  >
+                    {u}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
         </View>
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Quantity *</Text>
-          <TextInput
-            style={styles.input}
-            value={quantity}
-            onChangeText={setQuantity}
-          />
-        </View>
+
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Price (₹) *</Text>
           <TextInput
@@ -276,64 +224,41 @@ const AddItemScreen = ({ navigation, route }) => {
           />
         </View>
 
-        {/* Enhanced Dropdown */}
-        <View style={[styles.inputContainer, { zIndex: 10 }]}>
-          <Text style={styles.label}>
-            Select {user.role === "Worker" ? "Vendor" : "Worker"} *
-          </Text>
-          <View style={styles.searchContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder={`Search ${user.role === "Worker" ? "vendor" : "worker"}...`}
-              value={query}
-              onChangeText={handleSearch}
-              onFocus={() => setShowDropdown(true)}
-            />
-            <MaterialIcons
-              name={showDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
-              size={24}
-              color="#999"
-              style={styles.searchIcon}
-            />
-          </View>
-          {showDropdown && (
-            <View style={styles.dropdownList}>
-              <ScrollView
-                nestedScrollEnabled={true}
-                keyboardShouldPersistTaps="handled"
-                style={{ maxHeight: 200 }}
+        {/* Vendors */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Select Vendor *</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {vendors.map((v) => (
+              <TouchableOpacity
+                key={v.id}
+                style={[
+                  styles.chip,
+                  selectedVendor === v.id && styles.chipActive,
+                ]}
+                onPress={() => setSelectedVendor(v.id)}
               >
-                {filteredUsers.length > 0 ? (
-                  filteredUsers.map((item) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={styles.dropdownItem}
-                      onPress={() => handleSelectUser(item)}
-                    >
-                      <Text
-                        style={[
-                          styles.dropdownText,
-                          item.id === "BYPASS" && {
-                            fontWeight: "bold",
-                            color: "#76B7EF",
-                          },
-                        ]}
-                      >
-                        {item.full_name}
-                      </Text>
-                      {item.role !== "System" && (
-                        <Text style={styles.dropdownSubText}>{item.role}</Text>
-                      )}
-                    </TouchableOpacity>
-                  ))
-                ) : (
-                  <View style={styles.dropdownItem}>
-                    <Text style={styles.dropdownText}>No users found</Text>
-                  </View>
-                )}
-              </ScrollView>
-            </View>
-          )}
+                <Text
+                  style={[
+                    styles.chipText,
+                    selectedVendor === v.id && styles.chipTextActive,
+                  ]}
+                >
+                  {v.full_name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Remarks (Optional)</Text>
+          <TextInput
+            style={[styles.input, { height: 80 }]}
+            multiline
+            value={remarks}
+            onChangeText={setRemarks}
+            placeholder="Any notes..."
+          />
         </View>
 
         <TouchableOpacity
@@ -344,29 +269,10 @@ const AddItemScreen = ({ navigation, route }) => {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>Add Item</Text>
+            <Text style={styles.submitButtonText}>Submit Entry</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
-
-      {/* Image Viewer Modal */}
-      <Modal visible={viewerVisible} transparent={true} animationType="fade">
-        <View style={styles.viewerContainer}>
-          <TouchableOpacity
-            style={styles.viewerClose}
-            onPress={() => setViewerVisible(false)}
-          >
-            <MaterialIcons name="close" size={32} color="#fff" />
-          </TouchableOpacity>
-          {currentViewImage && (
-            <Image
-              source={{ uri: currentViewImage }}
-              style={styles.viewerImage}
-              resizeMode="contain"
-            />
-          )}
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -381,94 +287,54 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderColor: "#e0e0e0",
   },
   headerTitle: { fontSize: 20, fontWeight: "bold", color: "#333" },
-  content: { padding: 16, paddingBottom: 100 },
-  imageSection: { marginBottom: 20 },
-  imageList: { flexDirection: "row", paddingVertical: 10 },
-  addMoreBtn: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "#76B7EF",
-    borderStyle: "dashed",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
+  content: { padding: 16, paddingBottom: 50 },
+  imageContainer: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    overflow: "hidden",
+    marginBottom: 20,
     backgroundColor: "#fff",
+    elevation: 3,
   },
-  addMoreText: { color: "#76B7EF", fontWeight: "600", marginTop: 4 },
-  thumbnailContainer: { position: "relative", marginRight: 12 },
-  thumbnail: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    backgroundColor: "#ddd",
-  },
-  removeBtn: {
-    position: "absolute",
-    top: -8,
-    right: -8,
-    backgroundColor: "#ff4444",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-  },
-  inputContainer: { marginBottom: 20 },
+  image: { width: "100%", height: "100%" },
+  imagePlaceholder: { flex: 1, justifyContent: "center", alignItems: "center" },
+  imagePlaceholderText: { marginTop: 12, fontSize: 16, color: "#999" },
+  inputContainer: { marginBottom: 16 },
   label: { fontSize: 16, fontWeight: "600", color: "#333", marginBottom: 8 },
   input: {
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    padding: 12,
     fontSize: 16,
   },
-  searchContainer: { position: "relative", justifyContent: "center" },
-  searchIcon: { position: "absolute", right: 12 },
-  dropdownList: {
-    position: "absolute",
-    top: 55,
-    left: 0,
-    right: 0,
-    backgroundColor: "#fff",
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    elevation: 5,
-    zIndex: 1000,
+    borderColor: "#76B7EF",
+    marginRight: 8,
+    backgroundColor: "#fff",
+    marginBottom: 5,
   },
-  dropdownItem: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  dropdownText: { fontSize: 16, color: "#333" },
-  dropdownSubText: { fontSize: 12, color: "#999", marginTop: 2 },
+  chipActive: { backgroundColor: "#76B7EF" },
+  chipText: { color: "#76B7EF", fontWeight: "600" },
+  chipTextActive: { color: "#fff" },
   submitButton: {
     backgroundColor: "#76B7EF",
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 10,
     elevation: 4,
   },
   submitButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-  viewerContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  viewerClose: { position: "absolute", top: 50, right: 20, zIndex: 10 },
-  viewerImage: { width: "100%", height: "80%" },
 });
 
 export default AddItemScreen;

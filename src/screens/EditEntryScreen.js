@@ -9,147 +9,141 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  Modal,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { updatePurchaseEntry, deletePurchaseEntry } from "../services/supabase";
+import {
+  updatePurchaseEntry,
+  deletePurchaseEntry,
+  supabase,
+} from "../services/supabase";
 import { uploadImage, deleteImage } from "../services/imageService";
-import { MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons as Icon } from "@expo/vector-icons";
+
+const UNITS = ["Kg", "Count", "Litre", "Box", "Gram", "Packet", "Dozen"];
 
 const EditEntryScreen = ({ navigation, route }) => {
   const { entry, user } = route.params;
   const [loading, setLoading] = useState(false);
-  const [images, setImages] = useState([]);
-  const [itemName, setItemName] = useState(entry.item_name);
+  const [imageUri, setImageUri] = useState(
+    entry.image_url ? entry.image_url.split(",")[0] : null,
+  );
+  const [imageChanged, setImageChanged] = useState(false);
+
+  const [branchItems, setBranchItems] = useState([]);
+  const [selectedItemName, setSelectedItemName] = useState("");
+  const [customItemName, setCustomItemName] = useState("");
+
   const [quantity, setQuantity] = useState(entry.quantity);
+  const [unit, setUnit] = useState(entry.unit || "Kg");
   const [price, setPrice] = useState(entry.price.toString());
+  const [remarks, setRemarks] = useState(entry.remarks || "");
+
+  const [vendors, setVendors] = useState([]);
+  const [selectedVendor, setSelectedVendor] = useState(
+    entry.vendor_id || "BYPASS",
+  );
 
   // Image Viewer State
   const [viewerVisible, setViewerVisible] = useState(false);
-  const [currentViewImage, setCurrentViewImage] = useState(null);
 
   useEffect(() => {
-    if (entry.image_url) {
-      const urls = entry.image_url.split(",");
-      const filenames = entry.image_filename
-        ? entry.image_filename.split(",")
-        : [];
-      const initialImages = urls.map((url, index) => ({
-        uri: url,
-        filename: filenames[index] || null,
-        isNew: false,
-      }));
-      setImages(initialImages);
-    }
+    loadData();
   }, []);
 
-  const handleImagePicker = () => {
-    Alert.alert("Add Images", "Choose an option", [
-      { text: "Take Photo", onPress: () => openCamera() },
-      { text: "Choose from Library", onPress: () => openLibrary() },
-      { text: "Cancel", style: "cancel" },
-    ]);
+  const loadData = async () => {
+    // Determine Vendor List based on Branch
+    const { data: vendorData } = await supabase
+      .from("users")
+      .select("*")
+      .eq("role", "Vendor")
+      .contains("branches", [entry.branch_name]);
+    if (vendorData)
+      setVendors([{ id: "BYPASS", full_name: "Local Shop" }, ...vendorData]);
+
+    // Fetch Items List
+    const { data: itemData } = await supabase
+      .from("branch_items")
+      .select("item_name")
+      .eq("branch_name", entry.branch_name);
+    if (itemData) {
+      const itemsList = itemData.map((i) => i.item_name);
+      setBranchItems(itemsList);
+
+      if (itemsList.includes(entry.item_name)) {
+        setSelectedItemName(entry.item_name);
+      } else {
+        setSelectedItemName("Others");
+        setCustomItemName(entry.item_name);
+      }
+    }
   };
 
   const openCamera = async () => {
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: false,
-        quality: 0.8,
-      });
-      if (!result.canceled && result.assets) {
-        setImages([...images, { uri: result.assets[0].uri, isNew: true }]);
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to open camera");
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted")
+      return Alert.alert("Required", "Camera access is needed.");
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: false,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets) {
+      setImageUri(result.assets[0].uri);
+      setImageChanged(true);
     }
-  };
-
-  const openLibrary = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        allowsMultipleSelection: true,
-        allowsEditing: false,
-        quality: 0.8,
-      });
-      if (!result.canceled && result.assets) {
-        const newImages = result.assets.map((asset) => ({
-          uri: asset.uri,
-          isNew: true,
-        }));
-        setImages([...images, ...newImages]);
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to open image library");
-    }
-  };
-
-  const removeImage = (indexToRemove) =>
-    setImages(images.filter((_, index) => index !== indexToRemove));
-
-  const openImageViewer = (uri) => {
-    setCurrentViewImage(uri);
-    setViewerVisible(true);
   };
 
   const handleUpdate = async () => {
-    if (images.length === 0)
-      return Alert.alert("Error", "Please add at least one image");
-    if (
-      !itemName.trim() ||
-      !quantity.trim() ||
-      !price.trim() ||
-      isNaN(parseFloat(price))
-    ) {
+    const finalItemName =
+      selectedItemName === "Others" ? customItemName : selectedItemName;
+    if (!imageUri) return Alert.alert("Error", "Please add an image");
+    if (!finalItemName.trim() || !quantity.trim() || !price.trim())
       return Alert.alert("Error", "Please check your inputs");
-    }
 
     setLoading(true);
-
     try {
-      const finalUrls = [];
-      const finalFilenames = [];
+      let updatedImageUrl = entry.image_url;
+      let updatedImageFilename = entry.image_filename;
 
-      for (const img of images) {
-        if (img.isNew) {
-          const imageResult = await uploadImage(img.uri);
-          if (!imageResult.success)
-            throw new Error("Failed to upload new image");
-          finalUrls.push(imageResult.url);
-          finalFilenames.push(imageResult.filename);
-        } else {
-          finalUrls.push(img.uri);
-          if (img.filename) finalFilenames.push(img.filename);
-        }
+      if (imageChanged) {
+        if (entry.image_filename) await deleteImage(entry.image_filename);
+        const imageResult = await uploadImage(imageUri);
+        if (!imageResult.success) throw new Error("Image upload failed");
+        updatedImageUrl = imageResult.url;
+        updatedImageFilename = imageResult.filename;
       }
 
+      const isBypass = selectedVendor === "BYPASS";
+
       const updateData = {
-        item_name: itemName.trim(),
+        item_name: finalItemName.trim(),
         quantity: quantity.trim(),
+        unit: unit,
         price: parseFloat(price),
-        image_url: finalUrls.join(","),
-        image_filename: finalFilenames.join(","),
+        remarks: remarks.trim(),
+        image_url: updatedImageUrl,
+        image_filename: updatedImageFilename,
         updated_at: new Date().toISOString(),
+        vendor_id: isBypass ? null : selectedVendor,
       };
 
       const result = await updatePurchaseEntry(entry.id, updateData);
       setLoading(false);
-
       if (result.success)
-        Alert.alert("Success", "Item updated successfully!", [
+        Alert.alert("Success", "Updated!", [
           { text: "OK", onPress: () => navigation.goBack() },
         ]);
       else throw new Error(result.error);
     } catch (error) {
       setLoading(false);
-      Alert.alert("Error", error.message || "Failed to update item");
+      Alert.alert("Error", error.message);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert("Delete Item", "Are you sure you want to delete this item?", [
+    Alert.alert("Delete Item", "Are you sure?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -157,16 +151,12 @@ const EditEntryScreen = ({ navigation, route }) => {
         onPress: async () => {
           setLoading(true);
           try {
-            const result = await deletePurchaseEntry(entry.id);
+            if (entry.image_filename) await deleteImage(entry.image_filename);
+            await deletePurchaseEntry(entry.id);
             setLoading(false);
-            if (result.success)
-              Alert.alert("Success", "Item deleted!", [
-                { text: "OK", onPress: () => navigation.goBack() },
-              ]);
-            else throw new Error(result.error);
+            navigation.goBack();
           } catch (error) {
             setLoading(false);
-            Alert.alert("Error", error.message || "Failed to delete item");
           }
         },
       },
@@ -180,70 +170,101 @@ const EditEntryScreen = ({ navigation, route }) => {
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back" size={24} color="#333" />
+          <Icon name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Item</Text>
+        <Text style={styles.headerTitle}>Edit Purchase</Text>
         <TouchableOpacity onPress={handleDelete}>
-          <MaterialIcons name="delete" size={24} color="#f44336" />
+          <Icon name="delete" size={24} color="#f44336" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.imageSection}>
-          <Text style={styles.label}>Images ({images.length})</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.imageList}
-          >
-            <TouchableOpacity
-              style={styles.addMoreBtn}
-              onPress={handleImagePicker}
-            >
-              <MaterialIcons name="add-a-photo" size={32} color="#76B7EF" />
-              <Text style={styles.addMoreText}>Add</Text>
-            </TouchableOpacity>
-
-            {images.map((img, index) => (
-              <View key={index} style={styles.thumbnailContainer}>
-                <TouchableOpacity onPress={() => openImageViewer(img.uri)}>
-                  <Image source={{ uri: img.uri }} style={styles.thumbnail} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.removeBtn}
-                  onPress={() => removeImage(index)}
-                >
-                  <MaterialIcons name="close" size={14} color="#fff" />
-                </TouchableOpacity>
-                {img.isNew && (
-                  <View style={styles.newBadge}>
-                    <Text style={styles.newBadgeText}>New</Text>
-                  </View>
-                )}
+      <ScrollView contentContainerStyle={styles.content}>
+        <TouchableOpacity style={styles.imageContainer} onPress={openCamera}>
+          {imageUri ? (
+            <>
+              <Image source={{ uri: imageUri }} style={styles.image} />
+              <View style={styles.imageOverlay}>
+                <Icon name="edit" size={32} color="#fff" />
+                <Text style={{ color: "#fff" }}>Change Image</Text>
               </View>
-            ))}
-          </ScrollView>
-        </View>
+            </>
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Icon name="camera-alt" size={48} color="#999" />
+              <Text style={styles.imagePlaceholderText}>Take Photo</Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Item Name *</Text>
-          <TextInput
-            style={styles.input}
-            value={itemName}
-            onChangeText={setItemName}
-          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 8 }}
+          >
+            {[...branchItems, "Others"].map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={[
+                  styles.chip,
+                  selectedItemName === item && styles.chipActive,
+                ]}
+                onPress={() => setSelectedItemName(item)}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    selectedItemName === item && styles.chipTextActive,
+                  ]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          {selectedItemName === "Others" && (
+            <TextInput
+              style={styles.input}
+              value={customItemName}
+              onChangeText={setCustomItemName}
+            />
+          )}
         </View>
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Quantity *</Text>
-          <TextInput
-            style={styles.input}
-            value={quantity}
-            onChangeText={setQuantity}
-          />
+
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <View style={[styles.inputContainer, { flex: 1 }]}>
+            <Text style={styles.label}>Quantity *</Text>
+            <TextInput
+              style={styles.input}
+              value={quantity}
+              onChangeText={setQuantity}
+              keyboardType="numeric"
+            />
+          </View>
+          <View style={[styles.inputContainer, { flex: 1 }]}>
+            <Text style={styles.label}>Unit</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {UNITS.map((u) => (
+                <TouchableOpacity
+                  key={u}
+                  style={[styles.chip, unit === u && styles.chipActive]}
+                  onPress={() => setUnit(u)}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      unit === u && styles.chipTextActive,
+                    ]}
+                  >
+                    {u}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
         </View>
+
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Price (₹) *</Text>
           <TextInput
@@ -254,57 +275,53 @@ const EditEntryScreen = ({ navigation, route }) => {
           />
         </View>
 
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoLabel}>Entry Information</Text>
-          <Text style={styles.infoText}>
-            Status: {entry.status || "Verified"}
-          </Text>
-          {user.role !== "Worker" && entry.worker && (
-            <Text style={styles.infoText}>
-              Worker: {entry.worker.full_name}
-            </Text>
-          )}
-          {user.role !== "Vendor" && entry.vendor && (
-            <Text style={styles.infoText}>
-              Vendor: {entry.vendor.full_name}
-            </Text>
-          )}
-          <Text style={styles.infoText}>
-            Created: {new Date(entry.created_at).toLocaleString()}
-          </Text>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Select Vendor *</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {vendors.map((v) => (
+              <TouchableOpacity
+                key={v.id}
+                style={[
+                  styles.chip,
+                  selectedVendor === v.id && styles.chipActive,
+                ]}
+                onPress={() => setSelectedVendor(v.id)}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    selectedVendor === v.id && styles.chipTextActive,
+                  ]}
+                >
+                  {v.full_name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Remarks</Text>
+          <TextInput
+            style={[styles.input, { height: 80 }]}
+            multiline
+            value={remarks}
+            onChangeText={setRemarks}
+          />
         </View>
 
         <TouchableOpacity
-          style={styles.updateButton}
+          style={styles.submitButton}
           onPress={handleUpdate}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.updateButtonText}>Update Item</Text>
+            <Text style={styles.submitButtonText}>Update Entry</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
-
-      {/* Image Viewer Modal */}
-      <Modal visible={viewerVisible} transparent={true} animationType="fade">
-        <View style={styles.viewerContainer}>
-          <TouchableOpacity
-            style={styles.viewerClose}
-            onPress={() => setViewerVisible(false)}
-          >
-            <MaterialIcons name="close" size={32} color="#fff" />
-          </TouchableOpacity>
-          {currentViewImage && (
-            <Image
-              source={{ uri: currentViewImage }}
-              style={styles.viewerImage}
-              resizeMode="contain"
-            />
-          )}
-        </View>
-      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -319,85 +336,55 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderColor: "#e0e0e0",
   },
   headerTitle: { fontSize: 20, fontWeight: "bold", color: "#333" },
   content: { padding: 16, paddingBottom: 50 },
-  imageSection: { marginBottom: 20 },
-  imageList: { flexDirection: "row", paddingVertical: 10 },
-  addMoreBtn: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "#76B7EF",
-    borderStyle: "dashed",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
+  imageContainer: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    overflow: "hidden",
+    marginBottom: 20,
     backgroundColor: "#fff",
+    elevation: 3,
   },
-  addMoreText: { color: "#76B7EF", fontWeight: "600", marginTop: 4 },
-  thumbnailContainer: { position: "relative", marginRight: 12 },
-  thumbnail: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    backgroundColor: "#ddd",
-  },
-  removeBtn: {
-    position: "absolute",
-    top: -8,
-    right: -8,
-    backgroundColor: "#ff4444",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#fff",
-    zIndex: 2,
-  },
-  newBadge: {
+  image: { width: "100%", height: "100%" },
+  imageOverlay: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "rgba(118, 183, 239, 0.9)",
-    paddingVertical: 2,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    padding: 12,
     alignItems: "center",
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
   },
-  newBadgeText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
-  inputContainer: { marginBottom: 20 },
+  imagePlaceholder: { flex: 1, justifyContent: "center", alignItems: "center" },
+  imagePlaceholderText: { marginTop: 12, fontSize: 16, color: "#999" },
+  inputContainer: { marginBottom: 16 },
   label: { fontSize: 16, fontWeight: "600", color: "#333", marginBottom: 8 },
   input: {
     backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    padding: 12,
     fontSize: 16,
   },
-  infoContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 20,
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: "#76B7EF",
+    marginRight: 8,
+    backgroundColor: "#fff",
+    marginBottom: 5,
   },
-  infoLabel: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 8,
-  },
-  infoText: { fontSize: 14, color: "#666", marginBottom: 4 },
-  updateButton: {
+  chipActive: { backgroundColor: "#76B7EF" },
+  chipText: { color: "#76B7EF", fontWeight: "600" },
+  chipTextActive: { color: "#fff" },
+  submitButton: {
     backgroundColor: "#76B7EF",
     borderRadius: 8,
     paddingVertical: 16,
@@ -405,15 +392,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     elevation: 4,
   },
-  updateButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-  viewerContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  viewerClose: { position: "absolute", top: 50, right: 20, zIndex: 10 },
-  viewerImage: { width: "100%", height: "80%" },
+  submitButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
 });
 
 export default EditEntryScreen;

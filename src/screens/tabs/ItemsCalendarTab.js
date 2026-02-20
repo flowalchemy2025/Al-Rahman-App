@@ -49,9 +49,18 @@ const ItemsCalendarTab = ({ user, navigation }) => {
     const result = await getPurchaseEntries(filters);
 
     if (result.success) {
-      setEntries(result.data);
+      // --- FIX: Filter data so Branches only see their own items ---
+      let fetchedData = result.data;
+      if (user.role === "Branch") {
+        fetchedData = fetchedData.filter(
+          (e) => e.branch_name === user.branches[0],
+        );
+      }
+
+      setEntries(fetchedData);
+
       const marks = {};
-      result.data.forEach((entry) => {
+      fetchedData.forEach((entry) => {
         const date = entry.created_at.split("T")[0];
         marks[date] = { marked: true, dotColor: "#76B7EF" };
       });
@@ -80,9 +89,12 @@ const ItemsCalendarTab = ({ user, navigation }) => {
   const dayEntries = entries.filter(
     (e) => e.created_at.split("T")[0] === selectedDate,
   );
+
   const isToday = selectedDate === today;
+
+  // --- FIX: Swapped "Worker" for "Branch" ---
   const canModify =
-    user.role === "Super Admin" || (user.role === "Worker" && isToday);
+    user.role === "Super Admin" || (user.role === "Branch" && isToday);
 
   return (
     <View style={styles.container}>
@@ -151,6 +163,7 @@ const ItemsCalendarTab = ({ user, navigation }) => {
         contentContainerStyle={{ paddingBottom: 80, paddingTop: 10 }}
       />
 
+      {/* The FAB button will now appear for Branches if they select Today's date */}
       {canModify && user.role !== "Vendor" && (
         <TouchableOpacity
           style={styles.fab}

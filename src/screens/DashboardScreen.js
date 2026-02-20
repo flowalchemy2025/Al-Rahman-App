@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+} from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { signOut } from "../services/supabase";
 
-// Import your new Tab Screens
 import ItemsCalendarTab from "./tabs/ItemsCalendarTab";
 import AnalyticsTab from "./tabs/AnalyticsTab";
 import PaymentsTab from "./tabs/PaymentsTab";
@@ -30,51 +35,58 @@ const DashboardScreen = ({ navigation, route }) => {
     navigation.replace("Login");
   };
 
-  if (!user)
+  if (!user) {
     return (
-      <ActivityIndicator size="large" color="#76B7EF" style={{ flex: 1 }} />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#76B7EF" />
+      </View>
     );
+  }
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Custom Top Header Shared Across Tabs */}
-      <View
-        style={{
-          backgroundColor: "#76B7EF",
-          paddingTop: 50,
-          paddingBottom: 15,
-          paddingHorizontal: 20,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
+    <View style={styles.container}>
+      {/* 1. Header goes FIRST */}
+      <View style={styles.header}>
         <View>
-          <Text style={{ fontSize: 22, fontWeight: "bold", color: "#fff" }}>
-            {user.role} Dashboard
-          </Text>
-          <Text style={{ fontSize: 13, color: "#e3f2fd" }}>
-            Welcome, {user.full_name}
-          </Text>
+          <Text style={styles.headerTitle}>{user.role} Dashboard</Text>
+          <Text style={styles.headerSubtitle}>Welcome, {user.full_name}</Text>
         </View>
-        <TouchableOpacity
-          onPress={handleLogout}
-          style={{
-            padding: 8,
-            backgroundColor: "rgba(255,255,255,0.2)",
-            borderRadius: 20,
-          }}
-        >
+
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Icon name="logout" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Bottom Tabs Navigating the Sub-Pages */}
+      {/* 2. Management Quick Actions go SECOND */}
+      {user.role !== "Vendor" && (
+        <View style={styles.quickActionsContainer}>
+          <TouchableOpacity
+            style={styles.quickActionBtn}
+            onPress={() => navigation.navigate("UserManagement", { user })}
+          >
+            <Icon name="people" size={24} color="#76B7EF" />
+            <Text style={styles.quickActionText}>Manage Users</Text>
+          </TouchableOpacity>
+
+          {user.role === "Branch" && (
+            <TouchableOpacity
+              style={styles.quickActionBtn}
+              onPress={() => navigation.navigate("ItemManagement", { user })}
+            >
+              <Icon name="inventory" size={24} color="#76B7EF" />
+              <Text style={styles.quickActionText}>Manage Items</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* 3. Bottom Tabs go LAST */}
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
           tabBarActiveTintColor: "#76B7EF",
           tabBarInactiveTintColor: "gray",
+          tabBarStyle: { paddingBottom: 5, height: 60 },
           tabBarIcon: ({ color, size }) => {
             let iconName;
             if (route.name === "Calendar") iconName = "calendar-today";
@@ -85,7 +97,6 @@ const DashboardScreen = ({ navigation, route }) => {
           },
         })}
       >
-        {/* Everyone gets the Calendar & Payments tab */}
         <Tab.Screen name="Calendar">
           {() => <ItemsCalendarTab user={user} navigation={navigation} />}
         </Tab.Screen>
@@ -94,7 +105,6 @@ const DashboardScreen = ({ navigation, route }) => {
           {() => <PaymentsTab user={user} navigation={navigation} />}
         </Tab.Screen>
 
-        {/* Vendors do NOT get the Analytics tab */}
         {user.role !== "Vendor" && (
           <Tab.Screen name="Analytics">
             {() => <AnalyticsTab user={user} />}
@@ -104,5 +114,47 @@ const DashboardScreen = ({ navigation, route }) => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  header: {
+    backgroundColor: "#76B7EF",
+    paddingTop: 50,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
+  headerSubtitle: { fontSize: 13, color: "#e3f2fd" },
+  logoutButton: {
+    padding: 8,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 20,
+  },
+  quickActionsContainer: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    padding: 10,
+    elevation: 2,
+    gap: 10,
+    justifyContent: "center",
+  },
+  quickActionBtn: {
+    flex: 1,
+    backgroundColor: "#e3f2fd",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  quickActionText: {
+    color: "#76B7EF",
+    fontWeight: "bold",
+    fontSize: 12,
+    marginTop: 4,
+  },
+});
 
 export default DashboardScreen;

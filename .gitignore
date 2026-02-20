@@ -40,3 +40,5 @@ local.properties
 
 # testing
 /coverage
+
+eas.json
