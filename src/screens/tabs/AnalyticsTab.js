@@ -117,14 +117,14 @@ const AnalyticsTab = ({ user }) => {
 
   const chartConfig = {
     backgroundGradientFrom: "#ffffff",
-    backgroundGradientTo: "#f7fbff",
-    color: (opacity = 1) => `rgba(70, 140, 200, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(82, 97, 113, ${opacity})`,
+    backgroundGradientTo: "#F8FAFC",
+    color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(30, 41, 59, ${opacity})`,
     strokeWidth: 2,
     barPercentage: 0.64,
     decimalPlaces: 0,
-    fillShadowGradientFrom: "#8cc7ff",
-    fillShadowGradientTo: "#4f9de8",
+    fillShadowGradientFrom: "#0EA5E9",
+    fillShadowGradientTo: "#2563EB",
     fillShadowGradientOpacity: 1,
     useShadowColorFromDataset: false,
     propsForBackgroundLines: {
@@ -140,7 +140,7 @@ const AnalyticsTab = ({ user }) => {
   if (loading && entries.length === 0) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#76B7EF" />
+        <ActivityIndicator size="large" color="#2563EB" />
       </View>
     );
   }
@@ -153,7 +153,7 @@ const AnalyticsTab = ({ user }) => {
           <Text style={styles.pageSubtitle}>Item trends for the last 6 months</Text>
         </View>
         <View style={styles.badgePill}>
-          <Icon name="insights" size={16} color="#2c7ec3" />
+          <Icon name="insights" size={16} color="#0EA5E9" />
           <Text style={styles.badgeText}>Live</Text>
         </View>
       </View>
@@ -251,7 +251,7 @@ const AnalyticsTab = ({ user }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f3f7fb", padding: 16 },
+  container: { flex: 1, backgroundColor: "#F8FAFC", padding: 16 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   titleRow: {
     flexDirection: "row",
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#1f2d3d",
+    color: "#1E293B",
     letterSpacing: 0.2,
   },
   pageSubtitle: {
@@ -274,8 +274,8 @@ const styles = StyleSheet.create({
   badgePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#e7f4ff",
-    borderColor: "#c8e7ff",
+    backgroundColor: "#E0F2FE",
+    borderColor: "#BAE6FD",
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#2c7ec3",
+    color: "#0EA5E9",
   },
   emptyText: {
     textAlign: "center",
@@ -314,12 +314,12 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#76B7EF",
+    borderColor: "#2563EB",
     marginRight: 8,
-    backgroundColor: "#f8fbff",
+    backgroundColor: "#EFF6FF",
   },
-  chipActive: { backgroundColor: "#4f9de8", borderColor: "#4f9de8" },
-  chipText: { color: "#357ab8", fontWeight: "700", fontSize: 13 },
+  chipActive: { backgroundColor: "#2563EB", borderColor: "#2563EB" },
+  chipText: { color: "#0EA5E9", fontWeight: "700", fontSize: 13 },
   chipTextActive: { color: "#fff" },
   chartCard: {
     backgroundColor: "#fff",
@@ -395,3 +395,4 @@ const styles = StyleSheet.create({
 });
 
 export default AnalyticsTab;
+

@@ -63,13 +63,13 @@ const ItemsCalendarTab = ({ user, navigation }) => {
       const marks = {};
       fetchedData.forEach((entry) => {
         const date = getLocalDateString(entry.created_at);
-        marks[date] = { marked: true, dotColor: "#76B7EF" };
+        marks[date] = { marked: true, dotColor: "#2563EB" };
       });
 
       marks[selectedDate] = {
         ...marks[selectedDate],
         selected: true,
-        selectedColor: "#76B7EF",
+        selectedColor: "#2563EB",
       };
       setMarkedDates(marks);
     }
@@ -114,16 +114,16 @@ const ItemsCalendarTab = ({ user, navigation }) => {
             ),
             [day.dateString]: {
               selected: true,
-              selectedColor: "#76B7EF",
+              selectedColor: "#2563EB",
               marked: prev[day.dateString]?.marked,
             },
           }));
         }}
         markedDates={markedDates}
         theme={{
-          selectedDayBackgroundColor: "#76B7EF",
-          todayTextColor: "#76B7EF",
-          arrowColor: "#76B7EF",
+          selectedDayBackgroundColor: "#2563EB",
+          todayTextColor: "#2563EB",
+          arrowColor: "#2563EB",
         }}
       />
 
@@ -133,8 +133,8 @@ const ItemsCalendarTab = ({ user, navigation }) => {
           onPress={loadData}
           style={{ flexDirection: "row", alignItems: "center" }}
         >
-          <Icon name="refresh" size={20} color="#76B7EF" />
-          <Text style={{ color: "#76B7EF", marginLeft: 4 }}>Refresh</Text>
+          <Icon name="refresh" size={20} color="#2563EB" />
+          <Text style={{ color: "#2563EB", marginLeft: 4 }}>Refresh</Text>
         </TouchableOpacity>
       </View>
 
@@ -224,22 +224,22 @@ const ItemsCalendarTab = ({ user, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   headerRow: {
     padding: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: "#E2E8F0",
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  dateTitle: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  empty: { textAlign: "center", marginTop: 20, color: "#999" },
+  dateTitle: { fontSize: 16, fontWeight: "bold", color: "#1E293B" },
+  empty: { textAlign: "center", marginTop: 20, color: "#64748B" },
   fab: {
     position: "absolute",
     right: 20,
     bottom: 20,
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#2563EB",
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 15 },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#CBD5E1",
     borderRadius: 8,
     padding: 10,
     height: 80,
@@ -267,14 +267,15 @@ const styles = StyleSheet.create({
   modalBtns: { flexDirection: "row", justifyContent: "flex-end", gap: 10 },
   btnCancel: { padding: 10 },
   btnSave: {
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#2563EB",
     padding: 10,
     borderRadius: 8,
     minWidth: 80,
     alignItems: "center",
   },
-  btnTextCancel: { color: "#666" },
+  btnTextCancel: { color: "#475569" },
   btnTextSave: { color: "#fff", fontWeight: "bold" },
 });
 
 export default ItemsCalendarTab;
+

@@ -154,7 +154,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
             style={styles.proofBtn}
             onPress={() => openViewer(item.image_url)}
           >
-            <Icon name="image" size={14} color="#76B7EF" />
+            <Icon name="image" size={14} color="#0EA5E9" />
             <Text style={styles.proofText}>View Proof</Text>
           </TouchableOpacity>
         ) : null}
@@ -203,7 +203,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
         refreshing={loading}
         onRefresh={loadData}
         ListEmptyComponent={
-          <Text style={{ textAlign: "center", color: "#999", marginTop: 20 }}>
+          <Text style={{ textAlign: "center", color: "#64748B", marginTop: 20 }}>
             No transactions found.
           </Text>
         }
@@ -245,7 +245,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
                   setImageUri(null);
                 }}
               >
-                <Icon name="close" size={24} color="#333" />
+                <Icon name="close" size={24} color="#1E293B" />
               </TouchableOpacity>
             </View>
 
@@ -271,7 +271,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
               </View>
             ) : (
               <TouchableOpacity style={styles.uploadBtn} onPress={pickImage}>
-                <Icon name="add-photo-alternate" size={28} color="#76B7EF" />
+                <Icon name="add-photo-alternate" size={28} color="#2563EB" />
                 <Text style={styles.uploadBtnText}>Upload UPI Screenshot</Text>
               </TouchableOpacity>
             )}
@@ -323,9 +323,9 @@ const VendorLedgerScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   header: {
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#1E293B",
     paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   },
   balanceHeaderLabel: {
     fontSize: 14,
-    color: "#666",
+    color: "#475569",
     fontWeight: "600",
     textTransform: "uppercase",
   },
@@ -359,11 +359,11 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   ledgerIconContainer: { marginRight: 12, width: 40, alignItems: "center" },
-  ledgerTitle: { fontSize: 15, fontWeight: "bold", color: "#333" },
-  ledgerDate: { fontSize: 12, color: "#999", marginTop: 2 },
+  ledgerTitle: { fontSize: 15, fontWeight: "bold", color: "#1E293B" },
+  ledgerDate: { fontSize: 12, color: "#64748B", marginTop: 2 },
   ledgerRemarks: {
     fontSize: 12,
-    color: "#666",
+    color: "#475569",
     fontStyle: "italic",
     marginTop: 4,
   },
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 20,
     right: 20,
-    backgroundColor: "#4CAF50",
+    backgroundColor: "#2563EB",
     padding: 16,
     borderRadius: 12,
     flexDirection: "row",
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 6,
-    backgroundColor: "#e3f2fd",
+    backgroundColor: "#E0F2FE",
     alignSelf: "flex-start",
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   },
   proofText: {
     fontSize: 11,
-    color: "#76B7EF",
+    color: "#0EA5E9",
     fontWeight: "bold",
     marginLeft: 4,
   },
@@ -411,24 +411,24 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 40,
   },
-  modalTitle: { fontSize: 18, fontWeight: "bold", color: "#333" },
+  modalTitle: { fontSize: 18, fontWeight: "bold", color: "#1E293B" },
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#666",
+    color: "#475569",
     marginBottom: 8,
     marginTop: 12,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#CBD5E1",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#F8FAFC",
   },
   submitBtn: {
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#2563EB",
     padding: 16,
     borderRadius: 8,
     alignItems: "center",
@@ -438,9 +438,9 @@ const styles = StyleSheet.create({
 
   // Image Upload Styles
   uploadBtn: {
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#CBD5E1",
     borderStyle: "dashed",
     borderRadius: 8,
     height: 80,
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
   },
-  uploadBtnText: { color: "#76B7EF", fontWeight: "600", marginLeft: 8 },
+  uploadBtnText: { color: "#2563EB", fontWeight: "600", marginLeft: 8 },
   imagePreviewContainer: {
     height: 120,
     width: "100%",
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     position: "relative",
   },
-  imagePreview: { width: "100%", height: "100%", backgroundColor: "#eee" },
+  imagePreview: { width: "100%", height: "100%", backgroundColor: "#E2E8F0" },
   removeImageBtn: {
     position: "absolute",
     top: 8,
@@ -478,3 +478,4 @@ const styles = StyleSheet.create({
 });
 
 export default VendorLedgerScreen;
+

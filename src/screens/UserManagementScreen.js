@@ -332,7 +332,7 @@ const UserManagementScreen = ({ navigation, route }) => {
             >
               <Text style={styles.formTitle}>Edit User Details</Text>
               <TouchableOpacity onPress={() => setEditModalVisible(false)}>
-                <Icon name="close" size={24} color="#333" />
+                <Icon name="close" size={24} color="#1E293B" />
               </TouchableOpacity>
             </View>
 
@@ -424,9 +424,9 @@ const UserManagementScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   header: {
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#1E293B",
     paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
@@ -442,21 +442,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     elevation: 2,
   },
-  formTitle: { fontSize: 18, fontWeight: "bold", color: "#333" },
+  formTitle: { fontSize: 18, fontWeight: "bold", color: "#1E293B" },
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#666",
+    color: "#475569",
     marginBottom: 6,
     marginTop: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#CBD5E1",
     borderRadius: 8,
     padding: 12,
     marginBottom: 4,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#F8FAFC",
   },
   roleRow: { flexDirection: "row", gap: 10, marginVertical: 8 },
   roleChip: {
@@ -464,11 +464,11 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#76B7EF",
+    borderColor: "#2563EB",
     alignItems: "center",
   },
-  roleChipActive: { backgroundColor: "#76B7EF" },
-  roleTextDefault: { color: "#76B7EF", fontWeight: "600", fontSize: 12 },
+  roleChipActive: { backgroundColor: "#2563EB" },
+  roleTextDefault: { color: "#2563EB", fontWeight: "600", fontSize: 12 },
   roleTextActive: { color: "#fff" },
   submitBtn: {
     backgroundColor: "#4CAF50",
@@ -488,23 +488,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 1,
   },
-  userName: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  userDetails: { fontSize: 13, color: "#666", marginTop: 4 },
+  userName: { fontSize: 16, fontWeight: "bold", color: "#1E293B" },
+  userDetails: { fontSize: 13, color: "#475569", marginTop: 4 },
   userBranch: {
     fontSize: 12,
-    color: "#76B7EF",
+    color: "#0EA5E9",
     marginTop: 4,
     fontWeight: "600",
   },
   roleBadge: {
-    backgroundColor: "#e3f2fd",
+    backgroundColor: "#E0F2FE",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  roleText: { color: "#76B7EF", fontSize: 12, fontWeight: "bold" },
+  roleText: { color: "#2563EB", fontSize: 12, fontWeight: "bold" },
   editBtnSmall: {
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#2563EB",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 10,
@@ -521,3 +521,4 @@ const styles = StyleSheet.create({
 });
 
 export default UserManagementScreen;
+

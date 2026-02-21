@@ -140,9 +140,9 @@ const ItemManagementScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   header: {
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#1E293B",
     paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
@@ -155,11 +155,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     padding: 16,
     borderBottomWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: "#CBD5E1",
   },
   branchSubtitle: {
     fontSize: 14,
-    color: "#666",
+    color: "#475569",
     marginBottom: 10,
     fontWeight: "bold",
   },
@@ -167,13 +167,13 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#CBD5E1",
     borderRadius: 8,
     padding: 12,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#F8FAFC",
   },
   addBtn: {
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#2563EB",
     width: 50,
     borderRadius: 8,
     justifyContent: "center",
@@ -189,9 +189,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 1,
   },
-  itemName: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  itemDate: { fontSize: 12, color: "#999" },
-  emptyText: { textAlign: "center", color: "#999", marginTop: 20 },
+  itemName: { fontSize: 16, fontWeight: "bold", color: "#1E293B" },
+  itemDate: { fontSize: 12, color: "#64748B" },
+  emptyText: { textAlign: "center", color: "#64748B", marginTop: 20 },
 });
 
 export default ItemManagementScreen;
+

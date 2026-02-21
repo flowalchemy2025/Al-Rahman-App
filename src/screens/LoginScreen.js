@@ -83,7 +83,7 @@ const LoginScreen = ({ navigation }) => {
               <Icon
                 name={showPassword ? "visibility-off" : "visibility"}
                 size={20}
-                color="#76B7EF"
+                color="#2563EB"
               />
             </TouchableOpacity>
           </View>
@@ -109,7 +109,7 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f7fb",
+    backgroundColor: "#F8FAFC",
     justifyContent: "center",
     paddingHorizontal: 20,
   },
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   button: {
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#2563EB",
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",
@@ -184,3 +184,4 @@ const styles = StyleSheet.create({
 });
 
 export default LoginScreen;
+

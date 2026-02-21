@@ -20,11 +20,11 @@ const AnalyticsChart = ({ data }) => {
         chartConfig={{
           backgroundColor: "#fff",
           backgroundGradientFrom: "#fff",
-          backgroundGradientTo: "#fff",
+          backgroundGradientTo: "#F8FAFC",
           decimalPlaces: 0,
-          color: (o = 1) => `rgba(118, 183, 239, ${o})`,
-          labelColor: (o = 1) => `rgba(0, 0, 0, ${o})`,
-          propsForDots: { r: "5", strokeWidth: "2", stroke: "#76B7EF" },
+          color: (o = 1) => `rgba(37, 99, 235, ${o})`,
+          labelColor: (o = 1) => `rgba(30, 41, 59, ${o})`,
+          propsForDots: { r: "5", strokeWidth: "2", stroke: "#0EA5E9" },
         }}
         bezier
         style={styles.chart}
@@ -33,7 +33,7 @@ const AnalyticsChart = ({ data }) => {
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Total Value</Text>
           <Text style={styles.statValue}>
-            ₹{data.data.reduce((a, b) => a + b, 0).toFixed(0)}
+            Rs {data.data.reduce((a, b) => a + b, 0).toFixed(0)}
           </Text>
         </View>
         <View style={styles.statCard}>
@@ -54,18 +54,18 @@ const styles = StyleSheet.create({
     elevation: 2,
     margin: 16,
   },
-  title: { fontSize: 18, fontWeight: "bold", color: "#333", marginBottom: 16 },
+  title: { fontSize: 18, fontWeight: "bold", color: "#1E293B", marginBottom: 16 },
   chart: { marginVertical: 8, borderRadius: 16 },
   statsRow: { flexDirection: "row", gap: 12, marginTop: 16 },
   statCard: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#F8FAFC",
     padding: 12,
     borderRadius: 12,
     alignItems: "center",
   },
-  statLabel: { fontSize: 12, color: "#666", marginBottom: 4 },
-  statValue: { fontSize: 20, fontWeight: "bold", color: "#76B7EF" },
+  statLabel: { fontSize: 12, color: "#475569", marginBottom: 4 },
+  statValue: { fontSize: 20, fontWeight: "bold", color: "#2563EB" },
 });
 
 export default AnalyticsChart;

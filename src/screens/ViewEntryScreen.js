@@ -20,7 +20,7 @@ const ViewEntryScreen = ({ navigation, route }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#333" />
+          <Icon name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>View Purchase</Text>
         <View style={{ width: 24 }} />
@@ -37,7 +37,7 @@ const ViewEntryScreen = ({ navigation, route }) => {
             <Image source={{ uri: imageUri }} style={styles.image} />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Icon name="image-not-supported" size={48} color="#999" />
+              <Icon name="image-not-supported" size={48} color="#64748B" />
             </View>
           )}
         </TouchableOpacity>
@@ -117,18 +117,18 @@ const ViewEntryScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
     paddingTop: 50,
-    backgroundColor: "#fff",
+    backgroundColor: "#1E293B",
     borderBottomWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: "#CBD5E1",
   },
-  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#333" },
+  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#fff" },
   content: { padding: 16 },
   imageContainer: {
     width: "100%",
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#F8FAFC",
   },
   card: {
     backgroundColor: "#fff",
@@ -152,11 +152,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     elevation: 2,
   },
-  title: { fontSize: 24, fontWeight: "bold", color: "#333", marginBottom: 4 },
+  title: { fontSize: 24, fontWeight: "bold", color: "#1E293B", marginBottom: 4 },
   price: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#76B7EF",
+    color: "#2563EB",
     marginBottom: 20,
   },
   row: {
@@ -164,16 +164,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderColor: "#E2E8F0",
   },
-  label: { fontSize: 16, color: "#666", fontWeight: "600" },
-  value: { fontSize: 16, color: "#333" },
+  label: { fontSize: 16, color: "#475569", fontWeight: "600" },
+  value: { fontSize: 16, color: "#1E293B" },
   remarksText: {
     fontSize: 15,
     color: "#444",
     marginTop: 4,
     fontStyle: "italic",
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#F8FAFC",
     padding: 10,
     borderRadius: 8,
   },
@@ -188,3 +188,4 @@ const styles = StyleSheet.create({
 });
 
 export default ViewEntryScreen;
+

@@ -130,7 +130,7 @@ const AddItemScreen = ({ navigation, route }) => {
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#333" />
+          <Icon name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add Purchase</Text>
         <View style={{ width: 24 }} />
@@ -146,7 +146,7 @@ const AddItemScreen = ({ navigation, route }) => {
             <Image source={{ uri: imageUri }} style={styles.image} />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Icon name="camera-alt" size={48} color="#999" />
+              <Icon name="camera-alt" size={48} color="#64748B" />
               <Text style={styles.imagePlaceholderText}>Take Photo</Text>
             </View>
           )}
@@ -214,7 +214,7 @@ const AddItemScreen = ({ navigation, route }) => {
             <Icon
               name={showUnitDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
               size={22}
-              color="#666"
+              color="#475569"
             />
           </TouchableOpacity>
           {showUnitDropdown && (
@@ -284,7 +284,7 @@ const AddItemScreen = ({ navigation, route }) => {
                 showVendorDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"
               }
               size={22}
-              color="#666"
+              color="#475569"
             />
           </TouchableOpacity>
           {showVendorDropdown && (
@@ -342,18 +342,18 @@ const AddItemScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
     paddingTop: 50,
-    backgroundColor: "#fff",
+    backgroundColor: "#1E293B",
     borderBottomWidth: 1,
-    borderColor: "#e0e0e0",
+    borderColor: "#CBD5E1",
   },
-  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#333" },
+  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#fff" },
   content: { padding: 16, paddingBottom: 50 },
   imageContainer: {
     width: "100%",
@@ -366,13 +366,13 @@ const styles = StyleSheet.create({
   },
   image: { width: "100%", height: "100%" },
   imagePlaceholder: { flex: 1, justifyContent: "center", alignItems: "center" },
-  imagePlaceholderText: { marginTop: 12, fontSize: 16, color: "#999" },
+  imagePlaceholderText: { marginTop: 12, fontSize: 16, color: "#64748B" },
   inputContainer: { marginBottom: 16 },
-  label: { fontSize: 16, fontWeight: "600", color: "#333", marginBottom: 8 },
+  label: { fontSize: 16, fontWeight: "600", color: "#1E293B", marginBottom: 8 },
   input: {
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#CBD5E1",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
@@ -382,18 +382,18 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#76B7EF",
+    borderColor: "#2563EB",
     marginRight: 8,
     backgroundColor: "#fff",
     marginBottom: 5,
   },
-  chipActive: { backgroundColor: "#76B7EF" },
-  chipText: { color: "#76B7EF", fontWeight: "600" },
+  chipActive: { backgroundColor: "#2563EB" },
+  chipText: { color: "#2563EB", fontWeight: "600" },
   chipTextActive: { color: "#fff" },
   dropdownTrigger: {
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#CBD5E1",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -403,15 +403,15 @@ const styles = StyleSheet.create({
   },
   dropdownText: {
     fontSize: 16,
-    color: "#333",
+    color: "#1E293B",
   },
   dropdownPlaceholder: {
-    color: "#999",
+    color: "#64748B",
   },
   dropdownMenu: {
     marginTop: 6,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#CBD5E1",
     borderRadius: 8,
     backgroundColor: "#fff",
     overflow: "hidden",
@@ -427,14 +427,14 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: {
     fontSize: 15,
-    color: "#333",
+    color: "#1E293B",
   },
   dropdownItemTextActive: {
-    color: "#76B7EF",
+    color: "#2563EB",
     fontWeight: "700",
   },
   submitButton: {
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#2563EB",
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: "center",
@@ -445,3 +445,4 @@ const styles = StyleSheet.create({
 });
 
 export default AddItemScreen;
+

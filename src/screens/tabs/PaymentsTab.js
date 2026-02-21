@@ -75,7 +75,7 @@ const PaymentsTab = ({ user, navigation }) => {
       }
     >
       <View style={styles.vendorIcon}>
-        <Icon name="storefront" size={28} color="#76B7EF" />
+        <Icon name="storefront" size={28} color="#2563EB" />
       </View>
       <View style={styles.vendorInfo}>
         <Text style={styles.vendorName}>{item.full_name || item.username}</Text>
@@ -141,7 +141,7 @@ const PaymentsTab = ({ user, navigation }) => {
   if (loading)
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#76B7EF" />
+        <ActivityIndicator size="large" color="#2563EB" />
       </View>
     );
 
@@ -202,15 +202,15 @@ const PaymentsTab = ({ user, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   pageTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
+    color: "#1E293B",
     marginBottom: 16,
   },
-  emptyText: { textAlign: "center", color: "#999", marginTop: 20 },
+  emptyText: { textAlign: "center", color: "#64748B", marginTop: 20 },
 
   // Branch View Styles
   vendorCard: {
@@ -223,18 +223,18 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   vendorIcon: {
-    backgroundColor: "#e3f2fd",
+    backgroundColor: "#E0F2FE",
     padding: 12,
     borderRadius: 25,
     marginRight: 12,
   },
   vendorInfo: { flex: 1 },
-  vendorName: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  vendorDetail: { fontSize: 12, color: "#999", marginTop: 2 },
+  vendorName: { fontSize: 16, fontWeight: "bold", color: "#1E293B" },
+  vendorDetail: { fontSize: 12, color: "#64748B", marginTop: 2 },
   balanceContainer: { alignItems: "flex-end" },
   balanceLabel: {
     fontSize: 10,
-    color: "#666",
+    color: "#475569",
     textTransform: "uppercase",
     fontWeight: "bold",
   },
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   },
   vendorHeaderLabel: {
     fontSize: 14,
-    color: "#666",
+    color: "#475569",
     fontWeight: "600",
     textTransform: "uppercase",
   },
@@ -266,11 +266,11 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   ledgerIconContainer: { marginRight: 12, width: 40, alignItems: "center" },
-  ledgerTitle: { fontSize: 15, fontWeight: "bold", color: "#333" },
-  ledgerDate: { fontSize: 12, color: "#999", marginTop: 2 },
+  ledgerTitle: { fontSize: 15, fontWeight: "bold", color: "#1E293B" },
+  ledgerDate: { fontSize: 12, color: "#64748B", marginTop: 2 },
   ledgerRemarks: {
     fontSize: 12,
-    color: "#666",
+    color: "#475569",
     fontStyle: "italic",
     marginTop: 4,
   },
@@ -278,3 +278,4 @@ const styles = StyleSheet.create({
 });
 
 export default PaymentsTab;
+

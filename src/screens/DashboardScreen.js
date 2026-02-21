@@ -42,7 +42,7 @@ const DashboardScreen = ({ navigation, route }) => {
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#76B7EF" />
+        <ActivityIndicator size="large" color="#2563EB" />
       </View>
     );
   }
@@ -71,7 +71,7 @@ const DashboardScreen = ({ navigation, route }) => {
             style={styles.profileIconContainer}
             onPress={() => setShowProfileModal(true)}
           >
-            <Icon name="person" size={28} color="#76B7EF" />
+            <Icon name="person" size={28} color="#0EA5E9" />
           </TouchableOpacity>
           <View>
             <Text style={styles.headerTitle}>{user.role} Dashboard</Text>
@@ -96,7 +96,7 @@ const DashboardScreen = ({ navigation, route }) => {
             style={styles.quickActionBtn}
             onPress={() => navigation.navigate("UserManagement", { user })}
           >
-            <Icon name="people" size={24} color="#76B7EF" />
+            <Icon name="people" size={24} color="#0EA5E9" />
             <Text style={styles.quickActionText}>Manage Users</Text>
           </TouchableOpacity>
 
@@ -105,7 +105,7 @@ const DashboardScreen = ({ navigation, route }) => {
               style={styles.quickActionBtn}
               onPress={() => navigation.navigate("ItemManagement", { user })}
             >
-              <Icon name="inventory" size={24} color="#76B7EF" />
+              <Icon name="inventory" size={24} color="#0EA5E9" />
               <Text style={styles.quickActionText}>Manage Items</Text>
             </TouchableOpacity>
           )}
@@ -116,9 +116,14 @@ const DashboardScreen = ({ navigation, route }) => {
       <Tab.Navigator
         screenOptions={({ route }) => ({
           headerShown: false,
-          tabBarActiveTintColor: "#76B7EF",
-          tabBarInactiveTintColor: "gray",
-          tabBarStyle: { paddingBottom: 5, height: 60 },
+          tabBarActiveTintColor: "#2563EB",
+          tabBarInactiveTintColor: "#64748B",
+          tabBarStyle: {
+            paddingBottom: 5,
+            height: 60,
+            backgroundColor: "#fff",
+            borderTopColor: "#CBD5E1",
+          },
           tabBarIcon: ({ color, size }) => {
             let iconName;
             if (route.name === "Calendar") iconName = "calendar-today";
@@ -148,10 +153,10 @@ const DashboardScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#1E293B",
     paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 20,
@@ -180,7 +185,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: "#e3f2fd",
+    color: "#BFDBFE",
     marginTop: 2,
   },
   logoutButton: {
@@ -198,13 +203,13 @@ const styles = StyleSheet.create({
   },
   quickActionBtn: {
     flex: 1,
-    backgroundColor: "#e3f2fd",
+    backgroundColor: "#E0F2FE",
     padding: 10,
     borderRadius: 8,
     alignItems: "center",
   },
   quickActionText: {
-    color: "#76B7EF",
+    color: "#0EA5E9",
     fontWeight: "bold",
     fontSize: 12,
     marginTop: 4,
@@ -212,3 +217,5 @@ const styles = StyleSheet.create({
 });
 
 export default DashboardScreen;
+
+

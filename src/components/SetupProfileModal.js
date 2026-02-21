@@ -74,7 +74,7 @@ const SetupProfileModal = ({
           {/* Close Button - Only show if it is NOT a forced setup */}
           {!isForced && (
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-              <Icon name="close" size={24} color="#666" />
+              <Icon name="close" size={24} color="#475569" />
             </TouchableOpacity>
           )}
 
@@ -154,14 +154,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#333",
+    color: "#1E293B",
     textAlign: "center",
     marginBottom: 8,
     marginTop: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#666",
+    color: "#475569",
     textAlign: "center",
     marginBottom: 24,
     lineHeight: 20,
@@ -172,19 +172,19 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#333",
+    color: "#1E293B",
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "#CBD5E1",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#F8FAFC",
   },
   button: {
-    backgroundColor: "#76B7EF",
+    backgroundColor: "#2563EB",
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: "center",
@@ -198,3 +198,4 @@ const styles = StyleSheet.create({
 });
 
 export default SetupProfileModal;
+

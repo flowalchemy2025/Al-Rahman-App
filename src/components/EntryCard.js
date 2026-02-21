@@ -106,25 +106,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
-  image: { width: 95, height: "100%", backgroundColor: "#eee" },
+  image: { width: 95, height: "100%", backgroundColor: "#E2E8F0" },
   content: { flex: 1, padding: 10, justifyContent: "space-between" },
   header: { flexDirection: "row", justifyContent: "space-between" },
   title: {
     fontSize: 15,
     fontWeight: "bold",
-    color: "#333",
+    color: "#1E293B",
     flex: 1,
     marginRight: 8,
   },
-  price: { fontSize: 15, fontWeight: "bold", color: "#76B7EF" },
-  detail: { fontSize: 13, color: "#666" },
+  price: { fontSize: 15, fontWeight: "bold", color: "#2563EB" },
+  detail: { fontSize: 13, color: "#475569" },
   metaRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: 4,
   },
-  date: { fontSize: 11, color: "#999" },
+  date: { fontSize: 11, color: "#64748B" },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
   badgePending: { backgroundColor: "#fff3cd" },
   badgeVerified: { backgroundColor: "#d4edda" },
@@ -149,3 +149,4 @@ const styles = StyleSheet.create({
 });
 
 export default EntryCard;
+
