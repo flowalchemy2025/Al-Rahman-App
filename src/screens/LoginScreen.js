@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { signIn } from "../services/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -17,16 +18,15 @@ const LoginScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("Branch");
-
-  const roles = ["Super Admin", "Branch", "Vendor"];
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    if (!username || !password)
-      return Alert.alert("Error", "Please enter credentials");
+    if (!username.trim() || !password) {
+      return Alert.alert("Error", "Please enter username/mobile and password");
+    }
 
     setLoading(true);
-    const result = await signIn(username, password, role);
+    const result = await signIn(username.trim(), password);
     setLoading(false);
 
     if (result.success) {
@@ -43,62 +43,57 @@ const LoginScreen = ({ navigation }) => {
       style={styles.container}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>Restaurant Purchase Manager</Text>
-        <Text style={styles.subtitle}>Secure Access Only</Text>
+        <Text style={styles.title}>Al Rahman Inventory Hub</Text>
+        <Text style={styles.subtitle}>Sign in to continue</Text>
       </View>
 
-      <View style={styles.form}>
+      <View style={styles.formCard}>
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Username or Mobile</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter username"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-          />
+          <View style={styles.inputWrapper}>
+            <Icon name="person-outline" size={20} color="#7b8794" />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter username or mobile"
+              placeholderTextColor="#9aa5b1"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+            />
+          </View>
         </View>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
-
-        <View style={styles.roleContainer}>
-          <Text style={styles.label}>Select Role:</Text>
-          <View style={styles.roleButtons}>
-            {roles.map((r) => (
-              <TouchableOpacity
-                key={r}
-                style={[
-                  styles.roleButton,
-                  role === r && styles.roleButtonActive,
-                ]}
-                onPress={() => setRole(r)}
-              >
-                <Text
-                  style={[
-                    styles.roleButtonText,
-                    role === r && styles.roleButtonTextActive,
-                  ]}
-                >
-                  {r}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.inputWrapper}>
+            <Icon name="lock-outline" size={20} color="#7b8794" />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter password"
+              placeholderTextColor="#9aa5b1"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword((prev) => !prev)}
+              style={styles.passwordToggle}
+              activeOpacity={0.7}
+            >
+              <Icon
+                name={showPassword ? "visibility-off" : "visibility"}
+                size={20}
+                color="#76B7EF"
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleLogin}
           disabled={loading}
+          activeOpacity={0.8}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
@@ -114,54 +109,78 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#f5f7fb",
     justifyContent: "center",
-    padding: 20,
+    paddingHorizontal: 20,
   },
-  header: { alignItems: "center", marginBottom: 30 },
+  header: {
+    marginBottom: 28,
+    alignItems: "center",
+  },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: "bold",
-    color: "#333",
+    color: "#22303c",
     textAlign: "center",
   },
-  subtitle: { fontSize: 16, color: "#666", marginTop: 8 },
-  form: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
+  subtitle: {
+    marginTop: 8,
+    fontSize: 15,
+    color: "#52606d",
+  },
+  formCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 14,
     padding: 20,
-    elevation: 3,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
-  inputContainer: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: "600", color: "#333", marginBottom: 8 },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#334e68",
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#d9e2ec",
+    borderRadius: 10,
+    backgroundColor: "#f8fafc",
+    paddingHorizontal: 12,
+  },
   input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
     fontSize: 16,
-    backgroundColor: "#f9f9f9",
+    color: "#102a43",
   },
-  roleContainer: { marginBottom: 20 },
-  roleButtons: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  roleButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#76B7EF",
+  passwordToggle: {
+    padding: 4,
   },
-  roleButtonActive: { backgroundColor: "#76B7EF" },
-  roleButtonText: { color: "#76B7EF", fontWeight: "600" },
-  roleButtonTextActive: { color: "#fff" },
   button: {
     backgroundColor: "#76B7EF",
-    borderRadius: 8,
+    borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 8,
   },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  buttonDisabled: {
+    opacity: 0.75,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
 });
 
 export default LoginScreen;

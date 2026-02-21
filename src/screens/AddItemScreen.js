@@ -17,7 +17,7 @@ import { addPurchaseEntry, supabase } from "../services/supabase";
 import { uploadImage } from "../services/imageService";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 
-const UNITS = ["Kg", "Count", "Litre", "Box", "Gram", "Packet", "Dozen"];
+const UNITS = ["Kg", "Count", "Litre", "Box", "Gram", "Packet", "Dozen", "Others"];
 
 const AddItemScreen = ({ navigation, route }) => {
   const { user } = route.params;
@@ -30,11 +30,14 @@ const AddItemScreen = ({ navigation, route }) => {
   const [customItemName, setCustomItemName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("Kg");
+  const [customUnit, setCustomUnit] = useState("");
   const [price, setPrice] = useState("");
   const [remarks, setRemarks] = useState("");
 
   const [vendors, setVendors] = useState([]);
   const [selectedVendor, setSelectedVendor] = useState(null);
+  const [showUnitDropdown, setShowUnitDropdown] = useState(false);
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -75,10 +78,11 @@ const AddItemScreen = ({ navigation, route }) => {
   const handleSubmit = async () => {
     const finalItemName =
       selectedItemName === "Others" ? customItemName : selectedItemName;
+    const finalUnit = unit === "Others" ? customUnit : unit;
 
     if (!imageUri)
       return Alert.alert("Error", "Please take a photo of the bill/item");
-    if (!finalItemName.trim() || !quantity.trim() || !price.trim())
+    if (!finalItemName.trim() || !quantity.trim() || !price.trim() || !finalUnit.trim())
       return Alert.alert("Error", "Please fill required fields");
     if (!selectedVendor) return Alert.alert("Error", "Please select a vendor");
 
@@ -92,7 +96,7 @@ const AddItemScreen = ({ navigation, route }) => {
       const entryData = {
         item_name: finalItemName.trim(),
         quantity: quantity.trim(),
-        unit: unit,
+        unit: finalUnit.trim(),
         price: parseFloat(price),
         remarks: remarks.trim(),
         image_url: imageResult.url,
@@ -116,6 +120,9 @@ const AddItemScreen = ({ navigation, route }) => {
     }
   };
 
+  const selectedVendorLabel =
+    vendors.find((v) => v.id === selectedVendor)?.full_name || "Select vendor";
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -129,7 +136,10 @@ const AddItemScreen = ({ navigation, route }) => {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Strictly Camera Only */}
         <TouchableOpacity style={styles.imageContainer} onPress={openCamera}>
           {imageUri ? (
@@ -142,7 +152,7 @@ const AddItemScreen = ({ navigation, route }) => {
           )}
         </TouchableOpacity>
 
-        {/* Item Dropdown */}
+        {/* Item Name Bubbles */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Item Name *</Text>
           <ScrollView
@@ -173,81 +183,135 @@ const AddItemScreen = ({ navigation, route }) => {
           {selectedItemName === "Others" && (
             <TextInput
               style={styles.input}
-              placeholder="Enter Custom Item Name"
+              placeholder="Enter custom item name"
               value={customItemName}
               onChangeText={setCustomItemName}
             />
           )}
         </View>
 
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <View style={[styles.inputContainer, { flex: 1 }]}>
-            <Text style={styles.label}>Quantity *</Text>
-            <TextInput
-              style={styles.input}
-              value={quantity}
-              onChangeText={setQuantity}
-              keyboardType="numeric"
-            />
-          </View>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Quantity *</Text>
+          <TextInput
+            style={styles.input}
+            value={quantity}
+            onChangeText={setQuantity}
+            placeholder="Enter quantity"
+            keyboardType="decimal-pad"
+          />
+        </View>
 
-          <View style={[styles.inputContainer, { flex: 1 }]}>
-            <Text style={styles.label}>Unit</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Unit *</Text>
+          <TouchableOpacity
+            style={styles.dropdownTrigger}
+            onPress={() => {
+              setShowUnitDropdown((prev) => !prev);
+              setShowVendorDropdown(false);
+            }}
+          >
+            <Text style={styles.dropdownText}>{unit}</Text>
+            <Icon
+              name={showUnitDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+              size={22}
+              color="#666"
+            />
+          </TouchableOpacity>
+          {showUnitDropdown && (
+            <View style={styles.dropdownMenu}>
               {UNITS.map((u) => (
                 <TouchableOpacity
                   key={u}
-                  style={[styles.chip, unit === u && styles.chipActive]}
-                  onPress={() => setUnit(u)}
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setUnit(u);
+                    if (u !== "Others") setCustomUnit("");
+                    setShowUnitDropdown(false);
+                  }}
                 >
                   <Text
                     style={[
-                      styles.chipText,
-                      unit === u && styles.chipTextActive,
+                      styles.dropdownItemText,
+                      unit === u && styles.dropdownItemTextActive,
                     ]}
                   >
                     {u}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
-          </View>
+            </View>
+          )}
+          {unit === "Others" && (
+            <TextInput
+              style={[styles.input, { marginTop: 8 }]}
+              placeholder="Enter custom unit (e.g. Piece)"
+              value={customUnit}
+              onChangeText={setCustomUnit}
+            />
+          )}
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Price (₹) *</Text>
+          <Text style={styles.label}>Price (Rs) *</Text>
           <TextInput
             style={styles.input}
             value={price}
             onChangeText={setPrice}
+            placeholder="Enter price amount"
             keyboardType="decimal-pad"
           />
         </View>
 
-        {/* Vendors */}
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Select Vendor *</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {vendors.map((v) => (
-              <TouchableOpacity
-                key={v.id}
-                style={[
-                  styles.chip,
-                  selectedVendor === v.id && styles.chipActive,
-                ]}
-                onPress={() => setSelectedVendor(v.id)}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    selectedVendor === v.id && styles.chipTextActive,
-                  ]}
-                >
-                  {v.full_name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <TouchableOpacity
+            style={styles.dropdownTrigger}
+            onPress={() => {
+              setShowVendorDropdown((prev) => !prev);
+              setShowUnitDropdown(false);
+            }}
+          >
+            <Text
+              style={[
+                styles.dropdownText,
+                !selectedVendor && styles.dropdownPlaceholder,
+              ]}
+            >
+              {selectedVendorLabel}
+            </Text>
+            <Icon
+              name={
+                showVendorDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"
+              }
+              size={22}
+              color="#666"
+            />
+          </TouchableOpacity>
+          {showVendorDropdown && (
+            <View style={styles.dropdownMenu}>
+              <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
+                {vendors.map((v) => (
+                  <TouchableOpacity
+                    key={v.id}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setSelectedVendor(v.id);
+                      setShowVendorDropdown(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        selectedVendor === v.id && styles.dropdownItemTextActive,
+                      ]}
+                    >
+                      {v.full_name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
 
         <View style={styles.inputContainer}>
@@ -326,6 +390,49 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: "#76B7EF" },
   chipText: { color: "#76B7EF", fontWeight: "600" },
   chipTextActive: { color: "#fff" },
+  dropdownTrigger: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  dropdownPlaceholder: {
+    color: "#999",
+  },
+  dropdownMenu: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+  },
+  dropdownScroll: {
+    maxHeight: 180,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  dropdownItemText: {
+    fontSize: 15,
+    color: "#333",
+  },
+  dropdownItemTextActive: {
+    color: "#76B7EF",
+    fontWeight: "700",
+  },
   submitButton: {
     backgroundColor: "#76B7EF",
     borderRadius: 8,

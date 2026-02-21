@@ -50,11 +50,6 @@
       ],
       "expo-font",
       "expo-asset"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "8e8417d5-b461-4d48-839f-8214ab0b267b"
-      }
-    }
+    ]
   }
 }

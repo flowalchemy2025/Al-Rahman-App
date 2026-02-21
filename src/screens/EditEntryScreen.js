@@ -11,7 +11,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Modal,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import {
@@ -22,10 +21,14 @@ import {
 import { uploadImage, deleteImage } from "../services/imageService";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 
-const UNITS = ["Kg", "Count", "Litre", "Box", "Gram", "Packet", "Dozen"];
+const UNIT_PRESETS = ["Kg", "Count", "Litre", "Box", "Gram", "Packet", "Dozen"];
+const UNITS = [...UNIT_PRESETS, "Others"];
 
 const EditEntryScreen = ({ navigation, route }) => {
-  const { entry, user } = route.params;
+  const { entry } = route.params;
+  const initialUnit = entry.unit || "Kg";
+  const isPresetUnit = UNIT_PRESETS.includes(initialUnit);
+
   const [loading, setLoading] = useState(false);
   const [imageUri, setImageUri] = useState(
     entry.image_url ? entry.image_url.split(",")[0] : null,
@@ -36,8 +39,9 @@ const EditEntryScreen = ({ navigation, route }) => {
   const [selectedItemName, setSelectedItemName] = useState("");
   const [customItemName, setCustomItemName] = useState("");
 
-  const [quantity, setQuantity] = useState(entry.quantity);
-  const [unit, setUnit] = useState(entry.unit || "Kg");
+  const [quantity, setQuantity] = useState(String(entry.quantity ?? ""));
+  const [unit, setUnit] = useState(isPresetUnit ? initialUnit : "Others");
+  const [customUnit, setCustomUnit] = useState(isPresetUnit ? "" : initialUnit);
   const [price, setPrice] = useState(entry.price.toString());
   const [remarks, setRemarks] = useState(entry.remarks || "");
 
@@ -45,9 +49,8 @@ const EditEntryScreen = ({ navigation, route }) => {
   const [selectedVendor, setSelectedVendor] = useState(
     entry.vendor_id || "BYPASS",
   );
-
-  // Image Viewer State
-  const [viewerVisible, setViewerVisible] = useState(false);
+  const [showUnitDropdown, setShowUnitDropdown] = useState(false);
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -98,8 +101,9 @@ const EditEntryScreen = ({ navigation, route }) => {
   const handleUpdate = async () => {
     const finalItemName =
       selectedItemName === "Others" ? customItemName : selectedItemName;
+    const finalUnit = unit === "Others" ? customUnit : unit;
     if (!imageUri) return Alert.alert("Error", "Please add an image");
-    if (!finalItemName.trim() || !quantity.trim() || !price.trim())
+    if (!finalItemName.trim() || !quantity.trim() || !price.trim() || !finalUnit.trim())
       return Alert.alert("Error", "Please check your inputs");
 
     setLoading(true);
@@ -120,7 +124,7 @@ const EditEntryScreen = ({ navigation, route }) => {
       const updateData = {
         item_name: finalItemName.trim(),
         quantity: quantity.trim(),
-        unit: unit,
+        unit: finalUnit.trim(),
         price: parseFloat(price),
         remarks: remarks.trim(),
         image_url: updatedImageUrl,
@@ -163,6 +167,9 @@ const EditEntryScreen = ({ navigation, route }) => {
     ]);
   };
 
+  const selectedVendorLabel =
+    vendors.find((v) => v.id === selectedVendor)?.full_name || "Select vendor";
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -178,7 +185,10 @@ const EditEntryScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         <TouchableOpacity style={styles.imageContainer} onPress={openCamera}>
           {imageUri ? (
             <>
@@ -226,78 +236,135 @@ const EditEntryScreen = ({ navigation, route }) => {
           {selectedItemName === "Others" && (
             <TextInput
               style={styles.input}
+              placeholder="Enter custom item name"
               value={customItemName}
               onChangeText={setCustomItemName}
             />
           )}
         </View>
 
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <View style={[styles.inputContainer, { flex: 1 }]}>
-            <Text style={styles.label}>Quantity *</Text>
-            <TextInput
-              style={styles.input}
-              value={quantity}
-              onChangeText={setQuantity}
-              keyboardType="numeric"
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Quantity *</Text>
+          <TextInput
+            style={styles.input}
+            value={quantity}
+            onChangeText={setQuantity}
+            placeholder="Enter quantity"
+            keyboardType="decimal-pad"
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Unit *</Text>
+          <TouchableOpacity
+            style={styles.dropdownTrigger}
+            onPress={() => {
+              setShowUnitDropdown((prev) => !prev);
+              setShowVendorDropdown(false);
+            }}
+          >
+            <Text style={styles.dropdownText}>{unit}</Text>
+            <Icon
+              name={showUnitDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+              size={22}
+              color="#666"
             />
-          </View>
-          <View style={[styles.inputContainer, { flex: 1 }]}>
-            <Text style={styles.label}>Unit</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          </TouchableOpacity>
+          {showUnitDropdown && (
+            <View style={styles.dropdownMenu}>
               {UNITS.map((u) => (
                 <TouchableOpacity
                   key={u}
-                  style={[styles.chip, unit === u && styles.chipActive]}
-                  onPress={() => setUnit(u)}
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setUnit(u);
+                    if (u !== "Others") setCustomUnit("");
+                    setShowUnitDropdown(false);
+                  }}
                 >
                   <Text
                     style={[
-                      styles.chipText,
-                      unit === u && styles.chipTextActive,
+                      styles.dropdownItemText,
+                      unit === u && styles.dropdownItemTextActive,
                     ]}
                   >
                     {u}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </ScrollView>
-          </View>
+            </View>
+          )}
+          {unit === "Others" && (
+            <TextInput
+              style={[styles.input, { marginTop: 8 }]}
+              placeholder="Enter custom unit (e.g. Piece)"
+              value={customUnit}
+              onChangeText={setCustomUnit}
+            />
+          )}
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Price (₹) *</Text>
+          <Text style={styles.label}>Price (Rs) *</Text>
           <TextInput
             style={styles.input}
             value={price}
             onChangeText={setPrice}
+            placeholder="Enter price amount"
             keyboardType="decimal-pad"
           />
         </View>
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Select Vendor *</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {vendors.map((v) => (
-              <TouchableOpacity
-                key={v.id}
-                style={[
-                  styles.chip,
-                  selectedVendor === v.id && styles.chipActive,
-                ]}
-                onPress={() => setSelectedVendor(v.id)}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    selectedVendor === v.id && styles.chipTextActive,
-                  ]}
-                >
-                  {v.full_name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <TouchableOpacity
+            style={styles.dropdownTrigger}
+            onPress={() => {
+              setShowVendorDropdown((prev) => !prev);
+              setShowUnitDropdown(false);
+            }}
+          >
+            <Text
+              style={[
+                styles.dropdownText,
+                !selectedVendor && styles.dropdownPlaceholder,
+              ]}
+            >
+              {selectedVendorLabel}
+            </Text>
+            <Icon
+              name={
+                showVendorDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"
+              }
+              size={22}
+              color="#666"
+            />
+          </TouchableOpacity>
+          {showVendorDropdown && (
+            <View style={styles.dropdownMenu}>
+              <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
+                {vendors.map((v) => (
+                  <TouchableOpacity
+                    key={v.id}
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setSelectedVendor(v.id);
+                      setShowVendorDropdown(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        selectedVendor === v.id && styles.dropdownItemTextActive,
+                      ]}
+                    >
+                      {v.full_name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
 
         <View style={styles.inputContainer}>
@@ -307,6 +374,7 @@ const EditEntryScreen = ({ navigation, route }) => {
             multiline
             value={remarks}
             onChangeText={setRemarks}
+            placeholder="Add any remarks (optional)"
           />
         </View>
 
@@ -384,6 +452,49 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: "#76B7EF" },
   chipText: { color: "#76B7EF", fontWeight: "600" },
   chipTextActive: { color: "#fff" },
+  dropdownTrigger: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  dropdownPlaceholder: {
+    color: "#999",
+  },
+  dropdownMenu: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+  },
+  dropdownScroll: {
+    maxHeight: 180,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  dropdownItemText: {
+    fontSize: 15,
+    color: "#333",
+  },
+  dropdownItemTextActive: {
+    color: "#76B7EF",
+    fontWeight: "700",
+  },
   submitButton: {
     backgroundColor: "#76B7EF",
     borderRadius: 8,
