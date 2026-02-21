@@ -328,3 +328,68 @@ export const updateUserProfile = async (userId, updates) => {
     return { success: false, error: error.message };
   }
 };
+// --- NEW PAYMENT & LEDGER FUNCTIONS ---
+
+export const getLedgerData = async (vendorId, branchName) => {
+  try {
+    // 1. Fetch Purchases
+    const { data: purchases, error: pError } = await supabase
+      .from("purchase_entries")
+      .select("*")
+      .eq("vendor_id", vendorId)
+      .eq("branch_name", branchName);
+    if (pError) throw pError;
+
+    // 2. Fetch Payments
+    const { data: payments, error: tError } = await supabase
+      .from("vendor_transactions")
+      .select("*")
+      .eq("vendor_id", vendorId)
+      .eq("branch_name", branchName);
+    if (tError) throw tError;
+
+    // Calculate Balance (Total Purchases - Total Payments)
+    const totalPurchases = purchases.reduce(
+      (sum, item) => sum + parseFloat(item.price || 0),
+      0,
+    );
+    const totalPayments = payments.reduce(
+      (sum, item) => sum + parseFloat(item.amount || 0),
+      0,
+    );
+    const outstandingBalance = totalPurchases - totalPayments;
+
+    // Merge and Sort for Ledger Timeline
+    const ledger = [
+      ...purchases.map((p) => ({
+        ...p,
+        ledgerType: "Purchase",
+        date: p.created_at,
+        value: p.price,
+      })),
+      ...payments.map((p) => ({
+        ...p,
+        ledgerType: "Payment",
+        date: p.created_at,
+        value: p.amount,
+      })),
+    ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    return { success: true, balance: outstandingBalance, ledger };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+export const addVendorPayment = async (paymentData) => {
+  try {
+    const { data, error } = await supabase
+      .from("vendor_transactions")
+      .insert([paymentData])
+      .select();
+    if (error) throw error;
+    return { success: true, data: data[0] };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};

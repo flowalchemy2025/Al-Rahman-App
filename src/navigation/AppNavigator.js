@@ -11,6 +11,7 @@ import DashboardScreen from "../screens/DashboardScreen";
 import AddItemScreen from "../screens/AddItemScreen";
 import EditEntryScreen from "../screens/EditEntryScreen";
 import ViewEntryScreen from "../screens/ViewEntryScreen";
+import VendorLedgerScreen from "../screens/VendorLedgerScreen";
 
 const Stack = createStackNavigator();
 
@@ -80,6 +81,7 @@ const AppNavigator = () => {
         <Stack.Screen name="AddItem" component={AddItemScreen} />
         <Stack.Screen name="ViewEntry" component={ViewEntryScreen} />
         <Stack.Screen name="EditEntry" component={EditEntryScreen} />
+        <Stack.Screen name="VendorLedger" component={VendorLedgerScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

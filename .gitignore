@@ -42,3 +42,4 @@ local.properties
 /coverage
 
 eas.json
+app.json
