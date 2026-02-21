@@ -7,13 +7,28 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  LayoutAnimation,
+  UIManager,
+  Platform,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { supabase, getLedgerData } from "../../services/supabase";
 
+// Enable LayoutAnimation for Android accordion effect
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 const PaymentsTab = ({ user, navigation }) => {
   const [loading, setLoading] = useState(true);
+
+  // Super Admin State
+  const [superAdminData, setSuperAdminData] = useState([]);
+  const [expandedBranch, setExpandedBranch] = useState(null);
 
   // Branch State
   const [vendorsData, setVendorsData] = useState([]);
@@ -30,10 +45,55 @@ const PaymentsTab = ({ user, navigation }) => {
 
   const loadData = async () => {
     setLoading(true);
-    if (user.role === "Branch" || user.role === "Super Admin") {
-      const branchName = user.role === "Branch" ? user.branches[0] : null; // Handle admin logic if needed later
 
-      // 1. Get Vendors for this branch
+    if (user.role === "Super Admin") {
+      // 1. Get all vendors
+      const { data: allVendors } = await supabase
+        .from("users")
+        .select("*")
+        .eq("role", "Vendor");
+
+      if (allVendors) {
+        // 2. Extract unique branches
+        const branchSet = new Set();
+        allVendors.forEach((v) => {
+          if (v.branches) v.branches.forEach((b) => branchSet.add(b));
+        });
+        const uniqueBranches = Array.from(branchSet);
+
+        // 3. Group vendors by branch and calculate balances
+        const groupedData = await Promise.all(
+          uniqueBranches.map(async (branchName) => {
+            const branchVendors = allVendors.filter(
+              (v) => v.branches && v.branches.includes(branchName),
+            );
+
+            const vendorsWithBalances = await Promise.all(
+              branchVendors.map(async (v) => {
+                const ledgerRes = await getLedgerData(v.id, branchName);
+                return {
+                  ...v,
+                  balance: ledgerRes.success ? ledgerRes.balance : 0,
+                };
+              }),
+            );
+
+            const branchTotal = vendorsWithBalances.reduce(
+              (sum, v) => sum + v.balance,
+              0,
+            );
+
+            return {
+              branchName,
+              totalOutstanding: branchTotal,
+              vendors: vendorsWithBalances,
+            };
+          }),
+        );
+        setSuperAdminData(groupedData);
+      }
+    } else if (user.role === "Branch") {
+      const branchName = user.branches[0];
       const { data: vendors } = await supabase
         .from("users")
         .select("*")
@@ -41,7 +101,6 @@ const PaymentsTab = ({ user, navigation }) => {
         .contains("branches", [branchName]);
 
       if (vendors) {
-        // 2. Calculate balance for each vendor
         const vendorsWithBalances = await Promise.all(
           vendors.map(async (v) => {
             const ledgerRes = await getLedgerData(v.id, branchName);
@@ -51,8 +110,7 @@ const PaymentsTab = ({ user, navigation }) => {
         setVendorsData(vendorsWithBalances);
       }
     } else if (user.role === "Vendor") {
-      // Load specific vendor's ledger
-      const branchName = user.branches[0]; // Assuming vendor checks balance for their primary branch
+      const branchName = user.branches[0];
       const ledgerRes = await getLedgerData(user.id, branchName);
       if (ledgerRes.success) {
         setMyBalance(ledgerRes.balance);
@@ -62,23 +120,27 @@ const PaymentsTab = ({ user, navigation }) => {
     setLoading(false);
   };
 
-  // --- RENDER FOR BRANCH ---
-  const renderVendorCard = ({ item }) => (
+  const toggleBranchExpand = (branchName) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedBranch(expandedBranch === branchName ? null : branchName);
+  };
+
+  // --- REUSABLE VENDOR ROW ---
+  const renderVendorRow = (vendor, branchName) => (
     <TouchableOpacity
+      key={vendor.id}
       style={styles.vendorCard}
       onPress={() =>
-        navigation.navigate("VendorLedger", {
-          vendor: item,
-          branchName: user.branches[0],
-          user,
-        })
+        navigation.navigate("VendorLedger", { vendor, branchName, user })
       }
     >
       <View style={styles.vendorIcon}>
-        <Icon name="storefront" size={28} color="#2563EB" />
+        <Icon name="storefront" size={28} color="#76B7EF" />
       </View>
       <View style={styles.vendorInfo}>
-        <Text style={styles.vendorName}>{item.full_name || item.username}</Text>
+        <Text style={styles.vendorName}>
+          {vendor.full_name || vendor.username}
+        </Text>
         <Text style={styles.vendorDetail}>Tap to view ledger & pay</Text>
       </View>
       <View style={styles.balanceContainer}>
@@ -86,14 +148,57 @@ const PaymentsTab = ({ user, navigation }) => {
         <Text
           style={[
             styles.balanceAmount,
-            { color: item.balance > 0 ? "#f44336" : "#4CAF50" },
+            { color: vendor.balance > 0 ? "#f44336" : "#4CAF50" },
           ]}
         >
-          ₹{item.balance.toFixed(2)}
+          ₹{vendor.balance.toFixed(2)}
         </Text>
       </View>
     </TouchableOpacity>
   );
+
+  // --- RENDER FOR SUPER ADMIN ---
+  const renderAdminBranchGroup = ({ item }) => {
+    const isExpanded = expandedBranch === item.branchName;
+    return (
+      <View style={styles.adminBranchContainer}>
+        <TouchableOpacity
+          style={styles.adminBranchHeader}
+          onPress={() => toggleBranchExpand(item.branchName)}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.adminBranchName}>{item.branchName}</Text>
+            <Text style={styles.adminBranchSub}>
+              Total Outstanding:{" "}
+              <Text
+                style={{
+                  color: item.totalOutstanding > 0 ? "#f44336" : "#4CAF50",
+                  fontWeight: "bold",
+                }}
+              >
+                ₹{item.totalOutstanding.toFixed(2)}
+              </Text>
+            </Text>
+          </View>
+          <Icon
+            name={isExpanded ? "expand-less" : "expand-more"}
+            size={28}
+            color="#666"
+          />
+        </TouchableOpacity>
+
+        {isExpanded && (
+          <View style={styles.adminExpandedContent}>
+            {item.vendors.length > 0 ? (
+              item.vendors.map((v) => renderVendorRow(v, item.branchName))
+            ) : (
+              <Text style={styles.emptyText}>No vendors in this branch.</Text>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   // --- RENDER FOR VENDOR ---
   const renderLedgerItem = ({ item }) => (
@@ -138,16 +243,38 @@ const PaymentsTab = ({ user, navigation }) => {
     </View>
   );
 
-  if (loading)
+  if (
+    loading &&
+    !superAdminData.length &&
+    !vendorsData.length &&
+    !myLedger.length
+  ) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#76B7EF" />
       </View>
     );
+  }
 
   return (
     <View style={styles.container}>
-      {user.role === "Branch" || user.role === "Super Admin" ? (
+      {user.role === "Super Admin" ? (
+        <FlatList
+          data={superAdminData}
+          keyExtractor={(item) => item.branchName}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={loadData} />
+          }
+          contentContainerStyle={{ padding: 16 }}
+          renderItem={renderAdminBranchGroup}
+          ListHeaderComponent={
+            <Text style={styles.pageTitle}>All Branches Overview</Text>
+          }
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No branches or vendors found.</Text>
+          }
+        />
+      ) : user.role === "Branch" ? (
         <FlatList
           data={vendorsData}
           keyExtractor={(item) => item.id.toString()}
@@ -155,7 +282,7 @@ const PaymentsTab = ({ user, navigation }) => {
             <RefreshControl refreshing={loading} onRefresh={loadData} />
           }
           contentContainerStyle={{ padding: 16 }}
-          renderItem={renderVendorCard}
+          renderItem={({ item }) => renderVendorRow(item, user.branches[0])}
           ListHeaderComponent={
             <Text style={styles.pageTitle}>Vendor Balances</Text>
           }
@@ -202,17 +329,36 @@ const PaymentsTab = ({ user, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1, backgroundColor: "#f5f5f5" },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
   pageTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#1E293B",
+    color: "#333",
     marginBottom: 16,
   },
-  emptyText: { textAlign: "center", color: "#64748B", marginTop: 20 },
+  emptyText: { textAlign: "center", color: "#999", marginTop: 20 },
 
-  // Branch View Styles
+  // Super Admin Accordion Styles
+  adminBranchContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    overflow: "hidden",
+  },
+  adminBranchHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: "#e3f2fd",
+  },
+  adminBranchName: { fontSize: 18, fontWeight: "bold", color: "#333" },
+  adminBranchSub: { fontSize: 13, color: "#666", marginTop: 4 },
+  adminExpandedContent: { padding: 12, backgroundColor: "#fdfdfd" },
+
+  // Shared Vendor Card Styles
   vendorCard: {
     backgroundColor: "#fff",
     padding: 16,
@@ -220,21 +366,23 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     flexDirection: "row",
     alignItems: "center",
-    elevation: 2,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: "#eee",
   },
   vendorIcon: {
-    backgroundColor: "#E0F2FE",
+    backgroundColor: "#e3f2fd",
     padding: 12,
     borderRadius: 25,
     marginRight: 12,
   },
   vendorInfo: { flex: 1 },
-  vendorName: { fontSize: 16, fontWeight: "bold", color: "#1E293B" },
-  vendorDetail: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  vendorName: { fontSize: 16, fontWeight: "bold", color: "#333" },
+  vendorDetail: { fontSize: 12, color: "#999", marginTop: 2 },
   balanceContainer: { alignItems: "flex-end" },
   balanceLabel: {
     fontSize: 10,
-    color: "#475569",
+    color: "#666",
     textTransform: "uppercase",
     fontWeight: "bold",
   },
@@ -251,7 +399,7 @@ const styles = StyleSheet.create({
   },
   vendorHeaderLabel: {
     fontSize: 14,
-    color: "#475569",
+    color: "#666",
     fontWeight: "600",
     textTransform: "uppercase",
   },
@@ -266,11 +414,11 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   ledgerIconContainer: { marginRight: 12, width: 40, alignItems: "center" },
-  ledgerTitle: { fontSize: 15, fontWeight: "bold", color: "#1E293B" },
-  ledgerDate: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  ledgerTitle: { fontSize: 15, fontWeight: "bold", color: "#333" },
+  ledgerDate: { fontSize: 12, color: "#999", marginTop: 2 },
   ledgerRemarks: {
     fontSize: 12,
-    color: "#475569",
+    color: "#666",
     fontStyle: "italic",
     marginTop: 4,
   },
@@ -278,4 +426,3 @@ const styles = StyleSheet.create({
 });
 
 export default PaymentsTab;
-
