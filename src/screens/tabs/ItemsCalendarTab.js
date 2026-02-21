@@ -19,13 +19,16 @@ import {
   updateVendorComment,
 } from "../../services/supabase";
 
-const getLocalYYYYMMDD = () => {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const getLocalDateString = (dateInput) => {
+  const date = dateInput ? new Date(dateInput) : new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 const ItemsCalendarTab = ({ user, navigation }) => {
-  const today = getLocalYYYYMMDD();
+  const today = getLocalDateString();
   const [selectedDate, setSelectedDate] = useState(today);
   const [entries, setEntries] = useState([]);
   const [markedDates, setMarkedDates] = useState({});
@@ -36,7 +39,6 @@ const ItemsCalendarTab = ({ user, navigation }) => {
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [commentText, setCommentText] = useState("");
 
-  // useFocusEffect automatically refreshes data when you switch back to this tab
   useFocusEffect(
     useCallback(() => {
       loadData();
@@ -49,7 +51,6 @@ const ItemsCalendarTab = ({ user, navigation }) => {
     const result = await getPurchaseEntries(filters);
 
     if (result.success) {
-      // --- FIX: Filter data so Branches only see their own items ---
       let fetchedData = result.data;
       if (user.role === "Branch") {
         fetchedData = fetchedData.filter(
@@ -61,9 +62,10 @@ const ItemsCalendarTab = ({ user, navigation }) => {
 
       const marks = {};
       fetchedData.forEach((entry) => {
-        const date = entry.created_at.split("T")[0];
+        const date = getLocalDateString(entry.created_at);
         marks[date] = { marked: true, dotColor: "#76B7EF" };
       });
+
       marks[selectedDate] = {
         ...marks[selectedDate],
         selected: true,
@@ -87,12 +89,10 @@ const ItemsCalendarTab = ({ user, navigation }) => {
   };
 
   const dayEntries = entries.filter(
-    (e) => e.created_at.split("T")[0] === selectedDate,
+    (e) => getLocalDateString(e.created_at) === selectedDate,
   );
 
   const isToday = selectedDate === today;
-
-  // --- FIX: Swapped "Worker" for "Branch" ---
   const canModify =
     user.role === "Super Admin" || (user.role === "Branch" && isToday);
 
@@ -144,26 +144,43 @@ const ItemsCalendarTab = ({ user, navigation }) => {
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={loadData} />
         }
-        renderItem={({ item }) => (
-          <EntryCard
-            item={item}
-            user={user}
-            navigation={navigation}
-            onAddComment={(entry) => {
-              setSelectedEntry(entry);
-              setCommentText(entry.vendor_comment || "");
-              setCommentModal(true);
-            }}
-            onViewImage={() => {}}
-          />
-        )}
+        renderItem={({ item }) => {
+          // 🚨 ADDED ROUTING LOGIC HERE 🚨
+          const handleCardPress = () => {
+            const entryDate = getLocalDateString(item.created_at);
+            const isEditable =
+              user.role === "Super Admin" ||
+              (user.role === "Branch" && entryDate === today);
+
+            if (isEditable) {
+              navigation.navigate("EditEntry", { entry: item, user });
+            } else {
+              navigation.navigate("ViewEntry", { entry: item, user });
+            }
+          };
+
+          return (
+            <EntryCard
+              item={item}
+              user={user}
+              navigation={navigation}
+              onPress={handleCardPress} // <-- Passing the new dynamic route here
+              onAddComment={(entry) => {
+                setSelectedEntry(entry);
+                setCommentText(entry.vendor_comment || "");
+                setCommentModal(true);
+              }}
+              onViewImage={() => {}}
+            />
+          );
+        }}
         ListEmptyComponent={
           <Text style={styles.empty}>No purchases on this day.</Text>
         }
         contentContainerStyle={{ paddingBottom: 80, paddingTop: 10 }}
       />
 
-      {/* The FAB button will now appear for Branches if they select Today's date */}
+      {/* FAB Button logic handles adding new items for today */}
       {canModify && user.role !== "Vendor" && (
         <TouchableOpacity
           style={styles.fab}

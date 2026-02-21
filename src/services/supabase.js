@@ -314,3 +314,17 @@ export const updatePaymentVendorComment = async (id, comment) => {
     return { success: false, error: error.message };
   }
 };
+export const updateUserProfile = async (userId, updates) => {
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .update(updates)
+      .eq("id", userId)
+      .select();
+
+    if (error) throw error;
+    return { success: true, data: data[0] };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};

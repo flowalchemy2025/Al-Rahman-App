@@ -14,12 +14,13 @@ import { signOut } from "../services/supabase";
 import ItemsCalendarTab from "./tabs/ItemsCalendarTab";
 import AnalyticsTab from "./tabs/AnalyticsTab";
 import PaymentsTab from "./tabs/PaymentsTab";
+import SetupProfileModal from "../components/SetupProfileModal";
 
 const Tab = createBottomTabNavigator();
 
 const DashboardScreen = ({ navigation, route }) => {
   const [user, setUser] = useState(route.params?.user || null);
-
+  const [showProfileModal, setShowProfileModal] = useState(false);
   useEffect(() => {
     if (!user) {
       AsyncStorage.getItem("user").then((u) => {
@@ -34,7 +35,10 @@ const DashboardScreen = ({ navigation, route }) => {
     await AsyncStorage.removeItem("user");
     navigation.replace("Login");
   };
-
+  const needsProfileSetup =
+    user &&
+    (!user.full_name || !user.mobile_number) &&
+    user.role !== "Super Admin";
   if (!user) {
     return (
       <View style={styles.loadingContainer}>
@@ -45,11 +49,39 @@ const DashboardScreen = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
+      {/* Profile Setup / Edit Modal */}
+      <SetupProfileModal
+        visible={needsProfileSetup || showProfileModal}
+        isForced={needsProfileSetup}
+        user={user}
+        onClose={() => setShowProfileModal(false)}
+        onComplete={async (updatedUser) => {
+          setUser(updatedUser);
+          await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+          setShowProfileModal(false); // Close it if opened manually
+        }}
+      />
       {/* 1. Header goes FIRST */}
+      {/* Custom Top Header Shared Across Tabs */}
+      {/* Custom Top Header Shared Across Tabs */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>{user.role} Dashboard</Text>
-          <Text style={styles.headerSubtitle}>Welcome, {user.full_name}</Text>
+        <View style={styles.headerUserInfo}>
+          {/* MAKE THIS TOUCHABLE */}
+          <TouchableOpacity
+            style={styles.profileIconContainer}
+            onPress={() => setShowProfileModal(true)}
+          >
+            <Icon name="person" size={28} color="#76B7EF" />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.headerTitle}>{user.role} Dashboard</Text>
+            <Text style={styles.headerSubtitle}>
+              {user.full_name}{" "}
+              {user.role === "Branch" && user.branches
+                ? `• ${user.branches[0]}`
+                : ""}
+            </Text>
+          </View>
         </View>
 
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
@@ -127,8 +159,30 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
-  headerSubtitle: { fontSize: 13, color: "#e3f2fd" },
+  headerUserInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  profileIconContainer: {
+    backgroundColor: "#fff",
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    elevation: 3, // Adds a tiny shadow to the icon
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: "#e3f2fd",
+    marginTop: 2,
+  },
   logoutButton: {
     padding: 8,
     backgroundColor: "rgba(255,255,255,0.2)",
