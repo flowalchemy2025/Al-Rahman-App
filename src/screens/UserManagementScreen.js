@@ -22,7 +22,7 @@ import {
 import { userManagementStyles as styles } from "../styles";
 import { COLORS } from "../styles/theme";
 
-const BRANCH_OPTIONS = ["Branch 1", "Branch 2", "Branch 3"];
+const BRANCH_OPTIONS = ["Jafar Nagar", "Yashodhara Nagar", "Taj Bagh"];
 
 const UserManagementScreen = ({ navigation, route }) => {
   const { user } = route.params;
@@ -425,4 +425,3 @@ const UserManagementScreen = ({ navigation, route }) => {
 };
 
 export default UserManagementScreen;
-

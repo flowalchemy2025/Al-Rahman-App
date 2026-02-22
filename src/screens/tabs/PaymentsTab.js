@@ -9,6 +9,8 @@ import {
   LayoutAnimation,
   UIManager,
   Platform,
+  Image,
+  Modal,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
@@ -37,6 +39,9 @@ const PaymentsTab = ({ user, navigation }) => {
   // Vendor State
   const [myBalance, setMyBalance] = useState(0);
   const [myLedger, setMyLedger] = useState([]);
+  const [myBranchBalances, setMyBranchBalances] = useState([]);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerUri, setViewerUri] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -111,11 +116,34 @@ const PaymentsTab = ({ user, navigation }) => {
         setVendorsData(vendorsWithBalances);
       }
     } else if (user.role === "Vendor") {
-      const branchName = user.branches[0];
-      const ledgerRes = await getLedgerData(user.id, branchName);
-      if (ledgerRes.success) {
-        setMyBalance(ledgerRes.balance);
-        setMyLedger(ledgerRes.ledger);
+      const vendorBranches = user.branches || [];
+      if (!vendorBranches.length) {
+        setMyBalance(0);
+        setMyLedger([]);
+        setMyBranchBalances([]);
+      } else {
+        const ledgerResults = await Promise.all(
+          vendorBranches.map((branchName) => getLedgerData(user.id, branchName)),
+        );
+
+        const successfulResults = ledgerResults.filter((res) => res.success);
+        const branchBalances = ledgerResults
+          .map((res, index) => ({
+            branchName: vendorBranches[index],
+            balance: res.success ? res.balance || 0 : 0,
+          }))
+          .sort((a, b) => a.branchName.localeCompare(b.branchName));
+        const combinedBalance = successfulResults.reduce(
+          (sum, res) => sum + (res.balance || 0),
+          0,
+        );
+        const combinedLedger = successfulResults
+          .flatMap((res) => res.ledger || [])
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        setMyBranchBalances(branchBalances);
+        setMyBalance(combinedBalance);
+        setMyLedger(combinedLedger);
       }
     }
     setLoading(false);
@@ -124,6 +152,13 @@ const PaymentsTab = ({ user, navigation }) => {
   const toggleBranchExpand = (branchName) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedBranch(expandedBranch === branchName ? null : branchName);
+  };
+
+  const openViewer = (url) => {
+    const firstImage = typeof url === "string" ? url.split(",")[0] : null;
+    if (!firstImage) return;
+    setViewerUri(firstImage);
+    setViewerVisible(true);
   };
 
   // --- REUSABLE VENDOR ROW ---
@@ -229,9 +264,24 @@ const PaymentsTab = ({ user, navigation }) => {
             minute: "2-digit",
           })}
         </Text>
+        <Text style={styles.ledgerBranch}>
+          Branch: {item.branch_name || user.branches?.[0] || "N/A"}
+        </Text>
         {item.remarks && (
           <Text style={styles.ledgerRemarks}>{item.remarks}</Text>
         )}
+        {item.ledgerType !== "Purchase" && item.image_url ? (
+          <TouchableOpacity
+            style={styles.proofBtn}
+            onPress={() => openViewer(item.image_url)}
+          >
+            <Image
+              source={{ uri: item.image_url.split(",")[0] }}
+              style={styles.proofThumb}
+            />
+            <Text style={styles.proofText}>View Payment Proof</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
       <Text
         style={[
@@ -310,6 +360,37 @@ const PaymentsTab = ({ user, navigation }) => {
               ₹{myBalance.toFixed(2)}
             </Text>
           </View>
+          <View style={styles.branchBalanceCard}>
+            <Text style={styles.branchBalanceTitle}>Branch-wise Outstanding</Text>
+            {myBranchBalances.length ? (
+              myBranchBalances.map((branchBalance) => (
+                <View
+                  key={branchBalance.branchName}
+                  style={styles.branchBalanceRow}
+                >
+                  <Text style={styles.branchBalanceName}>
+                    {branchBalance.branchName}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.branchBalanceAmount,
+                      {
+                        color:
+                          branchBalance.balance > 0
+                            ? COLORS.danger
+                            : COLORS.success,
+                      },
+                    ]}
+                  >
+                    {"\u20B9"}
+                    {branchBalance.balance.toFixed(2)}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>No branches assigned.</Text>
+            )}
+          </View>
           <FlatList
             data={myLedger}
             keyExtractor={(item, index) => index.toString()}
@@ -327,6 +408,23 @@ const PaymentsTab = ({ user, navigation }) => {
               <Text style={styles.emptyText}>No transactions yet.</Text>
             }
           />
+          <Modal visible={viewerVisible} transparent animationType="fade">
+            <View style={styles.viewerContainer}>
+              <TouchableOpacity
+                style={styles.viewerClose}
+                onPress={() => setViewerVisible(false)}
+              >
+                <Icon name="close" size={32} color={COLORS.white} />
+              </TouchableOpacity>
+              {viewerUri && (
+                <Image
+                  source={{ uri: viewerUri }}
+                  style={styles.viewerImage}
+                  resizeMode="contain"
+                />
+              )}
+            </View>
+          </Modal>
         </View>
       )}
     </View>
@@ -334,3 +432,4 @@ const PaymentsTab = ({ user, navigation }) => {
 };
 
 export default PaymentsTab;
+
