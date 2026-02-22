@@ -45,21 +45,6 @@ const EntryCard = ({
           <Text style={styles.date}>
             {new Date(item.created_at).toLocaleDateString()}
           </Text>
-          <View
-            style={[
-              styles.badge,
-              isPending ? styles.badgePending : styles.badgeVerified,
-            ]}
-          >
-            <Text
-              style={[
-                styles.badgeText,
-                isPending ? styles.textPending : styles.textVerified,
-              ]}
-            >
-              {item.status || "Verified"}
-            </Text>
-          </View>
         </View>
 
         {/* Updated Roles to reflect Branch instead of Worker */}
@@ -94,4 +79,3 @@ const EntryCard = ({
 };
 
 export default EntryCard;
-

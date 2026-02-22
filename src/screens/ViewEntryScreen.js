@@ -38,7 +38,11 @@ const ViewEntryScreen = ({ navigation, route }) => {
             <Image source={{ uri: imageUri }} style={styles.image} />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Icon name="image-not-supported" size={48} color={COLORS.textMuted} />
+              <Icon
+                name="image-not-supported"
+                size={48}
+                color={COLORS.textMuted}
+              />
             </View>
           )}
         </TouchableOpacity>
@@ -55,23 +59,7 @@ const ViewEntryScreen = ({ navigation, route }) => {
               {entry.quantity} {entry.unit}
             </Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Status:</Text>
-            <Text
-              style={[
-                styles.value,
-                {
-                  color:
-                    entry.status === "Pending"
-                      ? COLORS.warningText
-                      : COLORS.successText,
-                  fontWeight: "bold",
-                },
-              ]}
-            >
-              {entry.status || "Verified"}
-            </Text>
-          </View>
+
           <View style={styles.row}>
             <Text style={styles.label}>Branch:</Text>
             <Text style={styles.value}>{entry.branch_name}</Text>
@@ -121,4 +109,3 @@ const ViewEntryScreen = ({ navigation, route }) => {
 };
 
 export default ViewEntryScreen;
-
