@@ -2,13 +2,14 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Image,
   Modal,
 } from "react-native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
+import { viewEntryStyles as styles } from "../styles";
+import { COLORS } from "../styles/theme";
 
 const ViewEntryScreen = ({ navigation, route }) => {
   const { entry } = route.params;
@@ -20,7 +21,7 @@ const ViewEntryScreen = ({ navigation, route }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#fff" />
+          <Icon name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>View Purchase</Text>
         <View style={{ width: 24 }} />
@@ -37,7 +38,7 @@ const ViewEntryScreen = ({ navigation, route }) => {
             <Image source={{ uri: imageUri }} style={styles.image} />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Icon name="image-not-supported" size={48} color="#64748B" />
+              <Icon name="image-not-supported" size={48} color={COLORS.textMuted} />
             </View>
           )}
         </TouchableOpacity>
@@ -60,7 +61,10 @@ const ViewEntryScreen = ({ navigation, route }) => {
               style={[
                 styles.value,
                 {
-                  color: entry.status === "Pending" ? "#856404" : "#155724",
+                  color:
+                    entry.status === "Pending"
+                      ? COLORS.warningText
+                      : COLORS.successText,
                   fontWeight: "bold",
                 },
               ]}
@@ -101,7 +105,7 @@ const ViewEntryScreen = ({ navigation, route }) => {
             style={styles.viewerClose}
             onPress={() => setViewerVisible(false)}
           >
-            <Icon name="close" size={32} color="#fff" />
+            <Icon name="close" size={32} color={COLORS.white} />
           </TouchableOpacity>
           {imageUri && (
             <Image
@@ -115,77 +119,6 @@ const ViewEntryScreen = ({ navigation, route }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    paddingTop: 50,
-    backgroundColor: "#1E293B",
-    borderBottomWidth: 1,
-    borderColor: "#CBD5E1",
-  },
-  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#fff" },
-  content: { padding: 16 },
-  imageContainer: {
-    width: "100%",
-    height: 250,
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: 20,
-    backgroundColor: "#fff",
-    elevation: 3,
-  },
-  image: { width: "100%", height: "100%" },
-  imagePlaceholder: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-  },
-  card: {
-    backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 12,
-    elevation: 2,
-  },
-  title: { fontSize: 24, fontWeight: "bold", color: "#1E293B", marginBottom: 4 },
-  price: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#2563EB",
-    marginBottom: 20,
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  label: { fontSize: 16, color: "#475569", fontWeight: "600" },
-  value: { fontSize: 16, color: "#1E293B" },
-  remarksText: {
-    fontSize: 15,
-    color: "#444",
-    marginTop: 4,
-    fontStyle: "italic",
-    backgroundColor: "#F8FAFC",
-    padding: 10,
-    borderRadius: 8,
-  },
-  viewerContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  viewerClose: { position: "absolute", top: 50, right: 20, zIndex: 10 },
-  viewerImage: { width: "100%", height: "80%" },
-});
 
 export default ViewEntryScreen;
 

@@ -4,6 +4,8 @@ import { createStackNavigator } from "@react-navigation/stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ActivityIndicator, View } from "react-native";
 import { supabase } from "../services/supabase"; // <-- Add this import
+import { appNavigatorStyles } from "../styles";
+import { COLORS } from "../styles/theme";
 import UserManagementScreen from "../screens/UserManagementScreen";
 import ItemManagementScreen from "../screens/ItemManagementScreen";
 import LoginScreen from "../screens/LoginScreen";
@@ -60,8 +62,8 @@ const AppNavigator = () => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#2563EB" />
+      <View style={appNavigatorStyles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
     );
   }

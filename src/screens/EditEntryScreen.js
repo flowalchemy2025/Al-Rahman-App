@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ScrollView,
   Alert,
   ActivityIndicator,
@@ -20,6 +19,8 @@ import {
 } from "../services/supabase";
 import { uploadImage, deleteImage } from "../services/imageService";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
+import { editEntryStyles as styles } from "../styles";
+import { COLORS } from "../styles/theme";
 
 const UNIT_PRESETS = ["Kg", "Count", "Litre", "Box", "Gram", "Packet", "Dozen"];
 const UNITS = [...UNIT_PRESETS, "Others"];
@@ -177,11 +178,11 @@ const EditEntryScreen = ({ navigation, route }) => {
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#fff" />
+          <Icon name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Purchase</Text>
         <TouchableOpacity onPress={handleDelete}>
-          <Icon name="delete" size={24} color="#f44336" />
+          <Icon name="delete" size={24} color={COLORS.danger} />
         </TouchableOpacity>
       </View>
 
@@ -194,13 +195,13 @@ const EditEntryScreen = ({ navigation, route }) => {
             <>
               <Image source={{ uri: imageUri }} style={styles.image} />
               <View style={styles.imageOverlay}>
-                <Icon name="edit" size={32} color="#fff" />
-                <Text style={{ color: "#fff" }}>Change Image</Text>
+                <Icon name="edit" size={32} color={COLORS.white} />
+                <Text style={{ color: COLORS.white }}>Change Image</Text>
               </View>
             </>
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Icon name="camera-alt" size={48} color="#64748B" />
+              <Icon name="camera-alt" size={48} color={COLORS.textMuted} />
               <Text style={styles.imagePlaceholderText}>Take Photo</Text>
             </View>
           )}
@@ -267,7 +268,7 @@ const EditEntryScreen = ({ navigation, route }) => {
             <Icon
               name={showUnitDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
               size={22}
-              color="#475569"
+              color={COLORS.textSecondary}
             />
           </TouchableOpacity>
           {showUnitDropdown && (
@@ -337,7 +338,7 @@ const EditEntryScreen = ({ navigation, route }) => {
                 showVendorDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"
               }
               size={22}
-              color="#475569"
+              color={COLORS.textSecondary}
             />
           </TouchableOpacity>
           {showVendorDropdown && (
@@ -384,7 +385,7 @@ const EditEntryScreen = ({ navigation, route }) => {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={COLORS.white} />
           ) : (
             <Text style={styles.submitButtonText}>Update Entry</Text>
           )}
@@ -393,118 +394,6 @@ const EditEntryScreen = ({ navigation, route }) => {
     </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    paddingTop: 50,
-    backgroundColor: "#1E293B",
-    borderBottomWidth: 1,
-    borderColor: "#CBD5E1",
-  },
-  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#fff" },
-  content: { padding: 16, paddingBottom: 50 },
-  imageContainer: {
-    width: "100%",
-    height: 200,
-    borderRadius: 10,
-    overflow: "hidden",
-    marginBottom: 20,
-    backgroundColor: "#fff",
-    elevation: 3,
-  },
-  image: { width: "100%", height: "100%" },
-  imageOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    padding: 12,
-    alignItems: "center",
-  },
-  imagePlaceholder: { flex: 1, justifyContent: "center", alignItems: "center" },
-  imagePlaceholderText: { marginTop: 12, fontSize: 16, color: "#64748B" },
-  inputContainer: { marginBottom: 16 },
-  label: { fontSize: 16, fontWeight: "600", color: "#1E293B", marginBottom: 8 },
-  input: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#2563EB",
-    marginRight: 8,
-    backgroundColor: "#fff",
-    marginBottom: 5,
-  },
-  chipActive: { backgroundColor: "#2563EB" },
-  chipText: { color: "#2563EB", fontWeight: "600" },
-  chipTextActive: { color: "#fff" },
-  dropdownTrigger: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: "#1E293B",
-  },
-  dropdownPlaceholder: {
-    color: "#64748B",
-  },
-  dropdownMenu: {
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    backgroundColor: "#fff",
-    overflow: "hidden",
-  },
-  dropdownScroll: {
-    maxHeight: 180,
-  },
-  dropdownItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  dropdownItemText: {
-    fontSize: 15,
-    color: "#1E293B",
-  },
-  dropdownItemTextActive: {
-    color: "#2563EB",
-    fontWeight: "700",
-  },
-  submitButton: {
-    backgroundColor: "#2563EB",
-    borderRadius: 8,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginTop: 10,
-    elevation: 4,
-  },
-  submitButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-});
 
 export default EditEntryScreen;
 

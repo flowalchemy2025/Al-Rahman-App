@@ -4,13 +4,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   FlatList,
   Alert,
   ActivityIndicator,
 } from "react-native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { supabase } from "../services/supabase";
+import { itemManagementStyles as styles } from "../styles";
+import { COLORS } from "../styles/theme";
 
 const ItemManagementScreen = ({ navigation, route }) => {
   const { user } = route.params;
@@ -86,7 +87,7 @@ const ItemManagementScreen = ({ navigation, route }) => {
         onPress={() => handleDeleteItem(item.id)}
         style={{ padding: 8 }}
       >
-        <Icon name="delete" size={24} color="#f44336" />
+        <Icon name="delete" size={24} color={COLORS.danger} />
       </TouchableOpacity>
     </View>
   );
@@ -95,7 +96,7 @@ const ItemManagementScreen = ({ navigation, route }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#fff" />
+          <Icon name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Manage Branch Items</Text>
         <View style={{ width: 24 }} />
@@ -116,9 +117,9 @@ const ItemManagementScreen = ({ navigation, route }) => {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={COLORS.white} />
             ) : (
-              <Icon name="add" size={24} color="#fff" />
+              <Icon name="add" size={24} color={COLORS.white} />
             )}
           </TouchableOpacity>
         </View>
@@ -138,61 +139,6 @@ const ItemManagementScreen = ({ navigation, route }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  header: {
-    backgroundColor: "#1E293B",
-    paddingTop: 50,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#fff" },
-  formContainer: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderColor: "#CBD5E1",
-  },
-  branchSubtitle: {
-    fontSize: 14,
-    color: "#475569",
-    marginBottom: 10,
-    fontWeight: "bold",
-  },
-  inputRow: { flexDirection: "row", gap: 10 },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: "#F8FAFC",
-  },
-  addBtn: {
-    backgroundColor: "#2563EB",
-    width: 50,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  itemCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    elevation: 1,
-  },
-  itemName: { fontSize: 16, fontWeight: "bold", color: "#1E293B" },
-  itemDate: { fontSize: 12, color: "#64748B" },
-  emptyText: { textAlign: "center", color: "#64748B", marginTop: 20 },
-});
 
 export default ItemManagementScreen;
 

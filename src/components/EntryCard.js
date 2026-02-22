@@ -1,6 +1,8 @@
 import React from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, Image, TouchableOpacity } from "react-native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
+import { entryCardStyles as styles } from "../styles";
+import { COLORS } from "../styles/theme";
 
 const EntryCard = ({
   item,
@@ -83,70 +85,13 @@ const EntryCard = ({
             style={styles.actionBtn}
             onPress={() => onAddComment(item)}
           >
-            <Icon name="comment" size={20} color="#FFA726" />
+            <Icon name="comment" size={20} color={COLORS.info} />
           </TouchableOpacity>
         </View>
       )}
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: 12,
-    flexDirection: "row",
-    height: 115,
-    overflow: "hidden",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  image: { width: 95, height: "100%", backgroundColor: "#E2E8F0" },
-  content: { flex: 1, padding: 10, justifyContent: "space-between" },
-  header: { flexDirection: "row", justifyContent: "space-between" },
-  title: {
-    fontSize: 15,
-    fontWeight: "bold",
-    color: "#1E293B",
-    flex: 1,
-    marginRight: 8,
-  },
-  price: { fontSize: 15, fontWeight: "bold", color: "#2563EB" },
-  detail: { fontSize: 13, color: "#475569" },
-  metaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  date: { fontSize: 11, color: "#64748B" },
-  badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  badgePending: { backgroundColor: "#fff3cd" },
-  badgeVerified: { backgroundColor: "#d4edda" },
-  badgeText: { fontSize: 10, fontWeight: "bold" },
-  textPending: { color: "#856404" },
-  textVerified: { color: "#155724" },
-  subText: { fontSize: 11, color: "#555", marginTop: 4 },
-  commentText: {
-    fontSize: 10,
-    color: "#FFA726",
-    marginTop: 2,
-    fontStyle: "italic",
-  },
-  actions: {
-    width: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    borderLeftWidth: 1,
-    borderLeftColor: "#f0f0f0",
-  },
-  actionBtn: { padding: 8 },
-});
 
 export default EntryCard;
 

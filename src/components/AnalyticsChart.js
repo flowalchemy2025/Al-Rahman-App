@@ -1,6 +1,8 @@
 import React from "react";
-import { View, Text, StyleSheet, Dimensions } from "react-native";
+import { View, Text, Dimensions } from "react-native";
 import { LineChart } from "react-native-chart-kit";
+import { analyticsChartStyles as styles } from "../styles";
+import { COLORS } from "../styles/theme";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -18,13 +20,13 @@ const AnalyticsChart = ({ data }) => {
         width={screenWidth - 48}
         height={220}
         chartConfig={{
-          backgroundColor: "#fff",
-          backgroundGradientFrom: "#fff",
-          backgroundGradientTo: "#F8FAFC",
+          backgroundColor: COLORS.white,
+          backgroundGradientFrom: COLORS.white,
+          backgroundGradientTo: COLORS.bgApp,
           decimalPlaces: 0,
-          color: (o = 1) => `rgba(37, 99, 235, ${o})`,
-          labelColor: (o = 1) => `rgba(30, 41, 59, ${o})`,
-          propsForDots: { r: "5", strokeWidth: "2", stroke: "#0EA5E9" },
+          color: () => COLORS.primary,
+          labelColor: () => COLORS.textPrimary,
+          propsForDots: { r: "5", strokeWidth: "2", stroke: COLORS.accentSoft },
         }}
         bezier
         style={styles.chart}
@@ -44,28 +46,5 @@ const AnalyticsChart = ({ data }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 2,
-    margin: 16,
-  },
-  title: { fontSize: 18, fontWeight: "bold", color: "#1E293B", marginBottom: 16 },
-  chart: { marginVertical: 8, borderRadius: 16 },
-  statsRow: { flexDirection: "row", gap: 12, marginTop: 16 },
-  statCard: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-    padding: 12,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  statLabel: { fontSize: 12, color: "#475569", marginBottom: 4 },
-  statValue: { fontSize: 20, fontWeight: "bold", color: "#2563EB" },
-});
 
 export default AnalyticsChart;

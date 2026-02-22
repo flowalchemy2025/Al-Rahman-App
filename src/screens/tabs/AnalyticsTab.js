@@ -2,7 +2,6 @@ import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   Dimensions,
   TouchableOpacity,
@@ -19,6 +18,8 @@ import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { Calendar } from "react-native-calendars";
 import * as FileSystem from "expo-file-system/legacy";
 import { getPurchaseEntries } from "../../services/supabase";
+import { analyticsTabStyles as styles } from "../../styles";
+import { COLORS } from "../../styles/theme";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -271,17 +272,17 @@ const AnalyticsTab = ({ user }) => {
   const avgSpend = totalEntryCount > 0 ? allTimeTotal / totalEntryCount : 0;
 
   const chartConfig = {
-    backgroundGradientFrom: "#ffffff",
-    backgroundGradientTo: "#F8FAFC",
-    color: (opacity = 1) => `rgba(37, 99, 235, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(30, 41, 59, ${opacity})`,
+    backgroundGradientFrom: COLORS.white,
+    backgroundGradientTo: COLORS.bgApp,
+    color: () => COLORS.primary,
+    labelColor: () => COLORS.textPrimary,
     strokeWidth: 2,
     barPercentage: 0.64,
     decimalPlaces: 0,
     useShadowColorFromDataset: false,
     propsForBackgroundLines: {
       strokeDasharray: "",
-      stroke: "#edf2f7",
+      stroke: COLORS.borderSoft,
       strokeWidth: 1,
     },
     propsForLabels: { fontSize: 11 },
@@ -290,7 +291,7 @@ const AnalyticsTab = ({ user }) => {
   if (loading && entries.length === 0) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color={COLORS.primaryDark} />
       </View>
     );
   }
@@ -308,12 +309,12 @@ const AnalyticsTab = ({ user }) => {
           <TouchableOpacity
             style={[
               styles.badgePill,
-              { backgroundColor: "#e0e7ff", borderColor: "#c7d2fe" },
+              { backgroundColor: COLORS.cardTint, borderColor: COLORS.border },
             ]}
             onPress={() => setExportModalVisible(true)}
           >
-            <Icon name="download" size={16} color="#4f46e5" />
-            <Text style={[styles.badgeText, { color: "#4f46e5" }]}>Export</Text>
+            <Icon name="download" size={16} color={COLORS.accent} />
+            <Text style={[styles.badgeText, { color: COLORS.accent }]}>Export</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -416,7 +417,7 @@ const AnalyticsTab = ({ user }) => {
                   setCalendarMode(null);
                 }}
               >
-                <Icon name="close" size={24} color="#333" />
+                <Icon name="close" size={24} color={COLORS.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -431,7 +432,7 @@ const AnalyticsTab = ({ user }) => {
                   }}
                 >
                   <TouchableOpacity onPress={() => setCalendarMode(null)}>
-                    <Icon name="arrow-back" size={24} color="#333" />
+                    <Icon name="arrow-back" size={24} color={COLORS.textPrimary} />
                   </TouchableOpacity>
                   <Text
                     style={{ fontSize: 16, fontWeight: "bold", marginLeft: 10 }}
@@ -450,10 +451,10 @@ const AnalyticsTab = ({ user }) => {
                   markedDates={{
                     [calendarMode === "start" ? startDate : endDate]: {
                       selected: true,
-                      selectedColor: "#4f46e5",
+                      selectedColor: COLORS.accent,
                     },
                   }}
-                  theme={{ todayTextColor: "#4f46e5", arrowColor: "#4f46e5" }}
+                  theme={{ todayTextColor: COLORS.accent, arrowColor: COLORS.accent }}
                 />
               </View>
             ) : (
@@ -484,7 +485,7 @@ const AnalyticsTab = ({ user }) => {
                       style={styles.dateSelector}
                       onPress={() => setCalendarMode("start")}
                     >
-                      <Icon name="calendar-today" size={18} color="#4f46e5" />
+                      <Icon name="calendar-today" size={18} color={COLORS.accent} />
                       <Text style={styles.dateText}>{startDate}</Text>
                     </TouchableOpacity>
                   </View>
@@ -494,7 +495,7 @@ const AnalyticsTab = ({ user }) => {
                       style={styles.dateSelector}
                       onPress={() => setCalendarMode("end")}
                     >
-                      <Icon name="event" size={18} color="#4f46e5" />
+                      <Icon name="event" size={18} color={COLORS.accent} />
                       <Text style={styles.dateText}>{endDate}</Text>
                     </TouchableOpacity>
                   </View>
@@ -506,13 +507,13 @@ const AnalyticsTab = ({ user }) => {
                   disabled={exporting}
                 >
                   {exporting ? (
-                    <ActivityIndicator color="#fff" />
+                    <ActivityIndicator color={COLORS.white} />
                   ) : (
                     <>
                       <Icon
                         name="file-download"
                         size={20}
-                        color="#fff"
+                        color={COLORS.white}
                         style={{ marginRight: 8 }}
                       />
                       <Text style={styles.submitBtnText}>
@@ -529,161 +530,5 @@ const AnalyticsTab = ({ user }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC", padding: 16 },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  titleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#1E293B",
-    letterSpacing: 0.2,
-  },
-  pageSubtitle: {
-    marginTop: 2,
-    fontSize: 13,
-    color: "#607086",
-    fontWeight: "500",
-  },
-  badgePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    gap: 4,
-  },
-  badgeText: { fontSize: 12, fontWeight: "700" },
-  emptyText: {
-    textAlign: "center",
-    color: "#7b8794",
-    marginTop: 40,
-    fontSize: 16,
-  },
-  selectorContainer: {
-    marginBottom: 16,
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#e6edf5",
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#334e68",
-    marginBottom: 12,
-  },
-  chipScroll: { flexDirection: "row" },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#2563EB",
-    marginRight: 8,
-    backgroundColor: "#EFF6FF",
-  },
-  chipActive: { backgroundColor: "#2563EB", borderColor: "#2563EB" },
-  chipText: { color: "#0EA5E9", fontWeight: "700", fontSize: 13 },
-  chipTextActive: { color: "#fff" },
-  chartCard: {
-    backgroundColor: "#fff",
-    padding: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#e6edf5",
-    elevation: 2,
-    marginBottom: 18,
-    alignItems: "center",
-  },
-  chartTitle: { fontSize: 20, fontWeight: "800", color: "#25364a" },
-  chartSubtitle: {
-    marginTop: 3,
-    fontSize: 13,
-    color: "#728197",
-    fontWeight: "500",
-    marginBottom: 10,
-  },
-  chartStyle: { borderRadius: 16 },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: "#fff",
-    paddingVertical: 18,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#e6edf5",
-    elevation: 1,
-    alignItems: "center",
-  },
-  statLabel: {
-    fontSize: 13,
-    color: "#607086",
-    marginBottom: 8,
-    fontWeight: "700",
-  },
-  statValueSpent: { fontSize: 21, fontWeight: "800", color: "#d64545" },
-  statValueQty: { fontSize: 21, fontWeight: "800", color: "#1f9d55" },
-
-  // Updated Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  modalTitle: { fontSize: 18, fontWeight: "bold", color: "#333" },
-  label: { fontSize: 12, fontWeight: "600", color: "#666", marginBottom: 8 },
-
-  presetChip: {
-    flex: 1,
-    backgroundColor: "#e0e7ff",
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  presetText: { color: "#4f46e5", fontWeight: "bold", fontSize: 13 },
-
-  dateSelector: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    gap: 8,
-  },
-  dateText: { fontSize: 15, color: "#333", fontWeight: "500" },
-
-  submitBtn: {
-    backgroundColor: "#4f46e5",
-    padding: 16,
-    borderRadius: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  submitBtnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-});
 
 export default AnalyticsTab;

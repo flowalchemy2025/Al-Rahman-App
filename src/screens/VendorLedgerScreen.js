@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TouchableOpacity,
   Modal,
@@ -17,6 +16,8 @@ import { MaterialIcons as Icon } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { getLedgerData, addVendorPayment } from "../services/supabase";
 import { uploadImage } from "../services/imageService";
+import { vendorLedgerStyles as styles } from "../styles";
+import { COLORS } from "../styles/theme";
 
 const VendorLedgerScreen = ({ navigation, route }) => {
   const { vendor, branchName, user } = route.params;
@@ -127,7 +128,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
               : "account-balance-wallet"
           }
           size={24}
-          color={item.ledgerType === "Purchase" ? "#f44336" : "#4CAF50"}
+          color={item.ledgerType === "Purchase" ? COLORS.danger : COLORS.success}
         />
       </View>
       <View style={{ flex: 1 }}>
@@ -154,7 +155,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
             style={styles.proofBtn}
             onPress={() => openViewer(item.image_url)}
           >
-            <Icon name="image" size={14} color="#0EA5E9" />
+            <Icon name="image" size={14} color={COLORS.accentSoft} />
             <Text style={styles.proofText}>View Proof</Text>
           </TouchableOpacity>
         ) : null}
@@ -162,7 +163,10 @@ const VendorLedgerScreen = ({ navigation, route }) => {
       <Text
         style={[
           styles.ledgerAmount,
-          { color: item.ledgerType === "Purchase" ? "#f44336" : "#4CAF50" },
+          {
+            color:
+              item.ledgerType === "Purchase" ? COLORS.danger : COLORS.success,
+          },
         ]}
       >
         {item.ledgerType === "Purchase" ? "+" : "-"} ₹
@@ -175,7 +179,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#fff" />
+          <Icon name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {vendor.full_name || vendor.username}'s Account
@@ -188,7 +192,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
         <Text
           style={[
             styles.balanceHeaderAmount,
-            { color: balance > 0 ? "#f44336" : "#4CAF50" },
+            { color: balance > 0 ? COLORS.danger : COLORS.success },
           ]}
         >
           ₹{balance.toFixed(2)}
@@ -203,7 +207,9 @@ const VendorLedgerScreen = ({ navigation, route }) => {
         refreshing={loading}
         onRefresh={loadData}
         ListEmptyComponent={
-          <Text style={{ textAlign: "center", color: "#64748B", marginTop: 20 }}>
+          <Text
+            style={{ textAlign: "center", color: COLORS.textMuted, marginTop: 20 }}
+          >
             No transactions found.
           </Text>
         }
@@ -216,10 +222,10 @@ const VendorLedgerScreen = ({ navigation, route }) => {
         <Icon
           name="payment"
           size={24}
-          color="#fff"
+          color={COLORS.white}
           style={{ marginRight: 8 }}
         />
-        <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 16 }}>
+        <Text style={{ color: COLORS.white, fontWeight: "bold", fontSize: 16 }}>
           Record Payment
         </Text>
       </TouchableOpacity>
@@ -245,7 +251,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
                   setImageUri(null);
                 }}
               >
-                <Icon name="close" size={24} color="#1E293B" />
+                <Icon name="close" size={24} color={COLORS.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -266,12 +272,12 @@ const VendorLedgerScreen = ({ navigation, route }) => {
                   style={styles.removeImageBtn}
                   onPress={() => setImageUri(null)}
                 >
-                  <Icon name="close" size={20} color="#fff" />
+                  <Icon name="close" size={20} color={COLORS.white} />
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity style={styles.uploadBtn} onPress={pickImage}>
-                <Icon name="add-photo-alternate" size={28} color="#2563EB" />
+                <Icon name="add-photo-alternate" size={28} color={COLORS.primary} />
                 <Text style={styles.uploadBtnText}>Upload UPI Screenshot</Text>
               </TouchableOpacity>
             )}
@@ -291,7 +297,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
               disabled={submitting}
             >
               {submitting ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={COLORS.white} />
               ) : (
                 <Text style={styles.submitBtnText}>Save Payment</Text>
               )}
@@ -307,7 +313,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
             style={styles.viewerClose}
             onPress={() => setViewerVisible(false)}
           >
-            <Icon name="close" size={32} color="#fff" />
+            <Icon name="close" size={32} color={COLORS.white} />
           </TouchableOpacity>
           {viewerUri && (
             <Image
@@ -321,161 +327,6 @@ const VendorLedgerScreen = ({ navigation, route }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  header: {
-    backgroundColor: "#1E293B",
-    paddingTop: 50,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#fff" },
-  balanceHeaderCard: {
-    backgroundColor: "#fff",
-    margin: 16,
-    padding: 20,
-    borderRadius: 12,
-    alignItems: "center",
-    elevation: 3,
-  },
-  balanceHeaderLabel: {
-    fontSize: 14,
-    color: "#475569",
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
-  balanceHeaderAmount: { fontSize: 32, fontWeight: "bold", marginTop: 4 },
-  ledgerCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    elevation: 1,
-  },
-  ledgerIconContainer: { marginRight: 12, width: 40, alignItems: "center" },
-  ledgerTitle: { fontSize: 15, fontWeight: "bold", color: "#1E293B" },
-  ledgerDate: { fontSize: 12, color: "#64748B", marginTop: 2 },
-  ledgerRemarks: {
-    fontSize: 12,
-    color: "#475569",
-    fontStyle: "italic",
-    marginTop: 4,
-  },
-  ledgerAmount: { fontSize: 16, fontWeight: "bold" },
-  fab: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: "#2563EB",
-    padding: 16,
-    borderRadius: 12,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 6,
-  },
-  proofBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 6,
-    backgroundColor: "#E0F2FE",
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  proofText: {
-    fontSize: 11,
-    color: "#0EA5E9",
-    fontWeight: "bold",
-    marginLeft: 4,
-  },
-
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  modalTitle: { fontSize: 18, fontWeight: "bold", color: "#1E293B" },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#475569",
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#F8FAFC",
-  },
-  submitBtn: {
-    backgroundColor: "#2563EB",
-    padding: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  submitBtnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-
-  // Image Upload Styles
-  uploadBtn: {
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderStyle: "dashed",
-    borderRadius: 8,
-    height: 80,
-    justifyContent: "center",
-    alignItems: "center",
-    flexDirection: "row",
-  },
-  uploadBtnText: { color: "#2563EB", fontWeight: "600", marginLeft: 8 },
-  imagePreviewContainer: {
-    height: 120,
-    width: "100%",
-    borderRadius: 8,
-    overflow: "hidden",
-    position: "relative",
-  },
-  imagePreview: { width: "100%", height: "100%", backgroundColor: "#E2E8F0" },
-  removeImageBtn: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    padding: 6,
-    borderRadius: 20,
-  },
-
-  // Viewer Styles
-  viewerContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  viewerClose: { position: "absolute", top: 50, right: 20, zIndex: 10 },
-  viewerImage: { width: "100%", height: "80%" },
-});
 
 export default VendorLedgerScreen;
 

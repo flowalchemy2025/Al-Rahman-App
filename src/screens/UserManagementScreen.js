@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   FlatList,
   Alert,
   ActivityIndicator,
@@ -20,6 +19,8 @@ import {
   updateUserAsAdmin,
   deleteUserAsAdmin,
 } from "../services/adminSupabase";
+import { userManagementStyles as styles } from "../styles";
+import { COLORS } from "../styles/theme";
 
 const BRANCH_OPTIONS = ["Branch 1", "Branch 2", "Branch 3"];
 
@@ -195,10 +196,10 @@ const UserManagementScreen = ({ navigation, route }) => {
           style={styles.editBtnSmall}
           onPress={() => openEditModal(item)}
         >
-          <Icon name="edit" size={16} color="#fff" />
+          <Icon name="edit" size={16} color={COLORS.white} />
           <Text
             style={{
-              color: "#fff",
+              color: COLORS.white,
               fontSize: 12,
               fontWeight: "bold",
               marginLeft: 4,
@@ -218,7 +219,7 @@ const UserManagementScreen = ({ navigation, route }) => {
     >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#fff" />
+          <Icon name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Manage Users</Text>
         <View style={{ width: 24 }} />
@@ -310,7 +311,7 @@ const UserManagementScreen = ({ navigation, route }) => {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={COLORS.white} />
               ) : (
                 <Text style={styles.submitBtnText}>Create User</Text>
               )}
@@ -332,7 +333,7 @@ const UserManagementScreen = ({ navigation, route }) => {
             >
               <Text style={styles.formTitle}>Edit User Details</Text>
               <TouchableOpacity onPress={() => setEditModalVisible(false)}>
-                <Icon name="close" size={24} color="#1E293B" />
+                <Icon name="close" size={24} color={COLORS.textPrimary} />
               </TouchableOpacity>
             </View>
 
@@ -400,7 +401,7 @@ const UserManagementScreen = ({ navigation, route }) => {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={COLORS.white} />
                 ) : (
                   <Text style={styles.submitBtnText}>Save</Text>
                 )}
@@ -408,7 +409,7 @@ const UserManagementScreen = ({ navigation, route }) => {
               <TouchableOpacity
                 style={[
                   styles.submitBtn,
-                  { flex: 1, backgroundColor: "#f44336" },
+                  { flex: 1, backgroundColor: COLORS.danger },
                 ]}
                 onPress={handleDeleteUser}
                 disabled={loading}
@@ -422,103 +423,6 @@ const UserManagementScreen = ({ navigation, route }) => {
     </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  header: {
-    backgroundColor: "#1E293B",
-    paddingTop: 50,
-    paddingBottom: 15,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#fff" },
-  formCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
-    elevation: 2,
-  },
-  formTitle: { fontSize: 18, fontWeight: "bold", color: "#1E293B" },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#475569",
-    marginBottom: 6,
-    marginTop: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 4,
-    backgroundColor: "#F8FAFC",
-  },
-  roleRow: { flexDirection: "row", gap: 10, marginVertical: 8 },
-  roleChip: {
-    flex: 1,
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#2563EB",
-    alignItems: "center",
-  },
-  roleChipActive: { backgroundColor: "#2563EB" },
-  roleTextDefault: { color: "#2563EB", fontWeight: "600", fontSize: 12 },
-  roleTextActive: { color: "#fff" },
-  submitBtn: {
-    backgroundColor: "#4CAF50",
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  submitBtnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  userCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    elevation: 1,
-  },
-  userName: { fontSize: 16, fontWeight: "bold", color: "#1E293B" },
-  userDetails: { fontSize: 13, color: "#475569", marginTop: 4 },
-  userBranch: {
-    fontSize: 12,
-    color: "#0EA5E9",
-    marginTop: 4,
-    fontWeight: "600",
-  },
-  roleBadge: {
-    backgroundColor: "#E0F2FE",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  roleText: { color: "#2563EB", fontSize: 12, fontWeight: "bold" },
-  editBtnSmall: {
-    backgroundColor: "#2563EB",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    padding: 20,
-  },
-  modalContent: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
-});
 
 export default UserManagementScreen;
 

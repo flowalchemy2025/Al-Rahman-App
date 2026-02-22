@@ -2,7 +2,6 @@ import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TouchableOpacity,
   RefreshControl,
@@ -14,6 +13,8 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { supabase, getLedgerData } from "../../services/supabase";
+import { paymentsTabStyles as styles } from "../../styles";
+import { COLORS } from "../../styles/theme";
 
 // Enable LayoutAnimation for Android accordion effect
 if (
@@ -135,7 +136,7 @@ const PaymentsTab = ({ user, navigation }) => {
       }
     >
       <View style={styles.vendorIcon}>
-        <Icon name="storefront" size={28} color="#76B7EF" />
+        <Icon name="storefront" size={28} color={COLORS.accentSoft} />
       </View>
       <View style={styles.vendorInfo}>
         <Text style={styles.vendorName}>
@@ -148,7 +149,7 @@ const PaymentsTab = ({ user, navigation }) => {
         <Text
           style={[
             styles.balanceAmount,
-            { color: vendor.balance > 0 ? "#f44336" : "#4CAF50" },
+            { color: vendor.balance > 0 ? COLORS.danger : COLORS.success },
           ]}
         >
           ₹{vendor.balance.toFixed(2)}
@@ -172,7 +173,8 @@ const PaymentsTab = ({ user, navigation }) => {
               Total Outstanding:{" "}
               <Text
                 style={{
-                  color: item.totalOutstanding > 0 ? "#f44336" : "#4CAF50",
+                  color:
+                    item.totalOutstanding > 0 ? COLORS.danger : COLORS.success,
                   fontWeight: "bold",
                 }}
               >
@@ -183,7 +185,7 @@ const PaymentsTab = ({ user, navigation }) => {
           <Icon
             name={isExpanded ? "expand-less" : "expand-more"}
             size={28}
-            color="#666"
+            color={COLORS.legacy5}
           />
         </TouchableOpacity>
 
@@ -211,7 +213,7 @@ const PaymentsTab = ({ user, navigation }) => {
               : "account-balance-wallet"
           }
           size={24}
-          color={item.ledgerType === "Purchase" ? "#f44336" : "#4CAF50"}
+          color={item.ledgerType === "Purchase" ? COLORS.danger : COLORS.success}
         />
       </View>
       <View style={{ flex: 1 }}>
@@ -234,7 +236,10 @@ const PaymentsTab = ({ user, navigation }) => {
       <Text
         style={[
           styles.ledgerAmount,
-          { color: item.ledgerType === "Purchase" ? "#f44336" : "#4CAF50" },
+          {
+            color:
+              item.ledgerType === "Purchase" ? COLORS.danger : COLORS.success,
+          },
         ]}
       >
         {item.ledgerType === "Purchase" ? "+" : "-"} ₹
@@ -251,7 +256,7 @@ const PaymentsTab = ({ user, navigation }) => {
   ) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#76B7EF" />
+        <ActivityIndicator size="large" color={COLORS.accentSoft} />
       </View>
     );
   }
@@ -299,7 +304,7 @@ const PaymentsTab = ({ user, navigation }) => {
             <Text
               style={[
                 styles.vendorHeaderAmount,
-                { color: myBalance > 0 ? "#f44336" : "#4CAF50" },
+                { color: myBalance > 0 ? COLORS.danger : COLORS.success },
               ]}
             >
               ₹{myBalance.toFixed(2)}
@@ -327,102 +332,5 @@ const PaymentsTab = ({ user, navigation }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f5f5" },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-  pageTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 16,
-  },
-  emptyText: { textAlign: "center", color: "#999", marginTop: 20 },
-
-  // Super Admin Accordion Styles
-  adminBranchContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 2,
-    overflow: "hidden",
-  },
-  adminBranchHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: "#e3f2fd",
-  },
-  adminBranchName: { fontSize: 18, fontWeight: "bold", color: "#333" },
-  adminBranchSub: { fontSize: 13, color: "#666", marginTop: 4 },
-  adminExpandedContent: { padding: 12, backgroundColor: "#fdfdfd" },
-
-  // Shared Vendor Card Styles
-  vendorCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
-  vendorIcon: {
-    backgroundColor: "#e3f2fd",
-    padding: 12,
-    borderRadius: 25,
-    marginRight: 12,
-  },
-  vendorInfo: { flex: 1 },
-  vendorName: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  vendorDetail: { fontSize: 12, color: "#999", marginTop: 2 },
-  balanceContainer: { alignItems: "flex-end" },
-  balanceLabel: {
-    fontSize: 10,
-    color: "#666",
-    textTransform: "uppercase",
-    fontWeight: "bold",
-  },
-  balanceAmount: { fontSize: 18, fontWeight: "bold", marginTop: 2 },
-
-  // Vendor View Styles
-  vendorHeaderCard: {
-    backgroundColor: "#fff",
-    margin: 16,
-    padding: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    elevation: 3,
-  },
-  vendorHeaderLabel: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
-  vendorHeaderAmount: { fontSize: 36, fontWeight: "bold", marginTop: 8 },
-  ledgerCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    elevation: 1,
-  },
-  ledgerIconContainer: { marginRight: 12, width: 40, alignItems: "center" },
-  ledgerTitle: { fontSize: 15, fontWeight: "bold", color: "#333" },
-  ledgerDate: { fontSize: 12, color: "#999", marginTop: 2 },
-  ledgerRemarks: {
-    fontSize: 12,
-    color: "#666",
-    fontStyle: "italic",
-    marginTop: 4,
-  },
-  ledgerAmount: { fontSize: 16, fontWeight: "bold" },
-});
 
 export default PaymentsTab;

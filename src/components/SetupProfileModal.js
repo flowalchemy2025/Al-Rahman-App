@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   Modal,
   ActivityIndicator,
   Alert,
@@ -13,6 +12,8 @@ import {
 } from "react-native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { updateUserProfile } from "../services/supabase";
+import { setupProfileModalStyles as styles } from "../styles";
+import { COLORS } from "../styles/theme";
 
 const SetupProfileModal = ({
   visible,
@@ -74,7 +75,7 @@ const SetupProfileModal = ({
           {/* Close Button - Only show if it is NOT a forced setup */}
           {!isForced && (
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-              <Icon name="close" size={24} color="#475569" />
+              <Icon name="close" size={24} color={COLORS.textSecondary} />
             </TouchableOpacity>
           )}
 
@@ -115,7 +116,7 @@ const SetupProfileModal = ({
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={COLORS.white} />
             ) : (
               <Text style={styles.buttonText}>Save Profile</Text>
             )}
@@ -125,77 +126,6 @@ const SetupProfileModal = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center",
-    padding: 20,
-  },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    position: "relative", // Added to position the close button
-  },
-  closeBtn: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    zIndex: 10,
-    padding: 4,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1E293B",
-    textAlign: "center",
-    marginBottom: 8,
-    marginTop: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#475569",
-    textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1E293B",
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#F8FAFC",
-  },
-  button: {
-    backgroundColor: "#2563EB",
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-});
 
 export default SetupProfileModal;
 
