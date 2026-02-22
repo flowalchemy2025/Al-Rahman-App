@@ -18,7 +18,6 @@ import { BarChart } from "react-native-chart-kit";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { Calendar } from "react-native-calendars";
 import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
 import { getPurchaseEntries } from "../../services/supabase";
 
 const screenWidth = Dimensions.get("window").width;
@@ -57,6 +56,14 @@ const getLocalDateString = (dateObj) => {
   const month = String(dateObj.getMonth() + 1).padStart(2, "0");
   const day = String(dateObj.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const escapeCsvCell = (value) => {
+  const text = String(value ?? "");
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
 };
 
 const AnalyticsTab = ({ user }) => {
@@ -148,36 +155,64 @@ const AnalyticsTab = ({ user }) => {
       ];
       const rows = filteredData.map((e) => [
         new Date(e.created_at).toLocaleDateString(),
-        `"${e.item_name}"`,
+        e.item_name,
         e.quantity,
-        `"${e.unit || ""}"`,
+        e.unit || "",
         e.price,
-        `"${e.branch_name || ""}"`,
-        `"${e.vendor?.full_name || "Local Shop"}"`,
-        `"${e.status || "Verified"}"`,
-        `"${(e.remarks || "").replace(/"/g, '""')}"`,
+        e.branch_name || "",
+        e.vendor?.full_name || "Local Shop",
+        e.status || "Verified",
+        e.remarks || "",
       ]);
 
       const csvString = [
-        headers.join(","),
-        ...rows.map((r) => r.join(",")),
+        headers.map(escapeCsvCell).join(","),
+        ...rows.map((r) => r.map(escapeCsvCell).join(",")),
       ].join("\n");
 
-      // FIX: Removed the explicit UTF8 options object to prevent the undefined crash
       const fileName = `Report_${startDate}_to_${endDate}.csv`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      await FileSystem.writeAsStringAsync(fileUri, csvString);
+      const csvWithBom = `\uFEFF${csvString}`;
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, {
-          mimeType: "text/csv",
-          dialogTitle: "Download Report",
-          UTI: "public.comma-separated-values-text",
-        });
+      if (Platform.OS === "android") {
+        const initialUri =
+          FileSystem.StorageAccessFramework.getUriForDirectoryInRoot(
+            "Download",
+          );
+        const permission =
+          await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(
+            initialUri,
+          );
+
+        if (!permission.granted) {
+          Alert.alert(
+            "Permission needed",
+            "Select a folder to save the CSV file locally.",
+          );
+          return;
+        }
+
+        const safUri = await FileSystem.StorageAccessFramework.createFileAsync(
+          permission.directoryUri,
+          fileName.replace(".csv", ""),
+          "text/csv",
+        );
+        await FileSystem.StorageAccessFramework.writeAsStringAsync(
+          safUri,
+          csvWithBom,
+          { encoding: FileSystem.EncodingType.UTF8 },
+        );
+
+        Alert.alert("Saved", "CSV report saved to your selected device folder.");
         setExportModalVisible(false);
-      } else {
-        Alert.alert("Error", "Sharing/Saving is not available on this device.");
+        return;
       }
+
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(fileUri, csvWithBom, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      Alert.alert("Saved", `CSV report saved locally:\n${fileUri}`);
+      setExportModalVisible(false);
     } catch (error) {
       Alert.alert("Export Failed", error.message);
     } finally {
