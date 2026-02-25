@@ -98,46 +98,6 @@ const ItemsCalendarTab = ({ user, navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Calendar
-        onDayPress={(day) => {
-          setSelectedDate(day.dateString);
-          setMarkedDates((prev) => ({
-            ...Object.keys(prev).reduce(
-              (acc, key) => ({
-                ...acc,
-                [key]: {
-                  marked: prev[key].marked,
-                  dotColor: prev[key].dotColor,
-                },
-              }),
-              {},
-            ),
-            [day.dateString]: {
-              selected: true,
-              selectedColor: COLORS.primaryDark,
-              marked: prev[day.dateString]?.marked,
-            },
-          }));
-        }}
-        markedDates={markedDates}
-        theme={{
-          selectedDayBackgroundColor: COLORS.primaryDark,
-          todayTextColor: COLORS.primaryDark,
-          arrowColor: COLORS.primaryDark,
-        }}
-      />
-
-      <View style={styles.headerRow}>
-        <Text style={styles.dateTitle}>Items on {selectedDate}</Text>
-        <TouchableOpacity
-          onPress={loadData}
-          style={{ flexDirection: "row", alignItems: "center" }}
-        >
-          <Icon name="refresh" size={20} color={COLORS.primaryDark} />
-          <Text style={{ color: COLORS.primaryDark, marginLeft: 4 }}>Refresh</Text>
-        </TouchableOpacity>
-      </View>
-
       <FlatList
         data={dayEntries}
         keyExtractor={(item) => item.id.toString()}
@@ -175,6 +135,51 @@ const ItemsCalendarTab = ({ user, navigation }) => {
         }}
         ListEmptyComponent={
           <Text style={styles.empty}>No purchases on this day.</Text>
+        }
+        ListHeaderComponent={
+          <>
+            <Calendar
+              onDayPress={(day) => {
+                setSelectedDate(day.dateString);
+                setMarkedDates((prev) => ({
+                  ...Object.keys(prev).reduce(
+                    (acc, key) => ({
+                      ...acc,
+                      [key]: {
+                        marked: prev[key].marked,
+                        dotColor: prev[key].dotColor,
+                      },
+                    }),
+                    {},
+                  ),
+                  [day.dateString]: {
+                    selected: true,
+                    selectedColor: COLORS.primaryDark,
+                    marked: prev[day.dateString]?.marked,
+                  },
+                }));
+              }}
+              markedDates={markedDates}
+              theme={{
+                selectedDayBackgroundColor: COLORS.primaryDark,
+                todayTextColor: COLORS.primaryDark,
+                arrowColor: COLORS.primaryDark,
+              }}
+            />
+
+            <View style={styles.headerRow}>
+              <Text style={styles.dateTitle}>Items on {selectedDate}</Text>
+              <TouchableOpacity
+                onPress={loadData}
+                style={{ flexDirection: "row", alignItems: "center" }}
+              >
+                <Icon name="refresh" size={20} color={COLORS.primaryDark} />
+                <Text style={{ color: COLORS.primaryDark, marginLeft: 4 }}>
+                  Refresh
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
         }
         contentContainerStyle={{ paddingBottom: 80, paddingTop: 10 }}
       />
