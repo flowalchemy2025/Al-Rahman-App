@@ -369,9 +369,10 @@ export const getLedgerData = async (vendorId, branchName) => {
       })),
       ...payments.map((p) => ({
         ...p,
-        ledgerType: "Payment",
+        ledgerType:
+          parseFloat(p.amount || 0) < 0 ? "Adjustment" : "Payment",
         date: p.created_at,
-        value: p.amount,
+        value: Math.abs(parseFloat(p.amount || 0)),
       })),
     ].sort((a, b) => new Date(b.date) - new Date(a.date));
 

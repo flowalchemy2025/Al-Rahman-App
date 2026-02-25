@@ -31,6 +31,10 @@ const VendorLedgerScreen = ({ navigation, route }) => {
   const [payRemarks, setPayRemarks] = useState("");
   const [imageUri, setImageUri] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [dueModalVisible, setDueModalVisible] = useState(false);
+  const [dueAmount, setDueAmount] = useState("");
+  const [dueRemark, setDueRemark] = useState("");
+  const [dueSubmitting, setDueSubmitting] = useState(false);
 
   // Image Viewer State
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -113,6 +117,33 @@ const VendorLedgerScreen = ({ navigation, route }) => {
     }
   };
 
+  const handleAddDue = async () => {
+    if (!dueAmount || isNaN(dueAmount) || Number(dueAmount) <= 0) {
+      return Alert.alert("Error", "Enter a valid amount");
+    }
+
+    setDueSubmitting(true);
+    const res = await addVendorPayment({
+      vendor_id: vendor.id,
+      branch_name: branchName,
+      amount: -Math.abs(parseFloat(dueAmount)),
+      remarks: dueRemark,
+      image_url: null,
+      image_filename: null,
+      created_by: user.id,
+    });
+    setDueSubmitting(false);
+
+    if (res.success) {
+      setDueModalVisible(false);
+      setDueAmount("");
+      setDueRemark("");
+      loadData();
+    } else {
+      Alert.alert("Error", res.error);
+    }
+  };
+
   const openViewer = (url) => {
     setViewerUri(url.split(",")[0]);
     setViewerVisible(true);
@@ -125,17 +156,25 @@ const VendorLedgerScreen = ({ navigation, route }) => {
           name={
             item.ledgerType === "Purchase"
               ? "receipt"
-              : "account-balance-wallet"
+              : item.ledgerType === "Adjustment"
+                ? "add-circle"
+                : "account-balance-wallet"
           }
           size={24}
-          color={item.ledgerType === "Purchase" ? COLORS.danger : COLORS.success}
+          color={
+            item.ledgerType === "Purchase" || item.ledgerType === "Adjustment"
+              ? COLORS.danger
+              : COLORS.success
+          }
         />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.ledgerTitle}>
           {item.ledgerType === "Purchase"
             ? `Bill: ${item.item_name}`
-            : "Payment Recorded"}
+            : item.ledgerType === "Adjustment"
+              ? "Outstanding Added"
+              : "Payment Recorded"}
         </Text>
         <Text style={styles.ledgerDate}>
           {new Date(item.date).toLocaleDateString()}{" "}
@@ -165,11 +204,11 @@ const VendorLedgerScreen = ({ navigation, route }) => {
           styles.ledgerAmount,
           {
             color:
-              item.ledgerType === "Purchase" ? COLORS.danger : COLORS.success,
+              item.ledgerType === "Purchase" || item.ledgerType === "Adjustment" ? COLORS.danger : COLORS.success,
           },
         ]}
       >
-        {item.ledgerType === "Purchase" ? "+" : "-"} ₹
+        {item.ledgerType === "Purchase" || item.ledgerType === "Adjustment" ? "+" : "-"} {"\u20B9"}
         {parseFloat(item.value).toFixed(2)}
       </Text>
     </View>
@@ -215,20 +254,29 @@ const VendorLedgerScreen = ({ navigation, route }) => {
         }
       />
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setModalVisible(true)}
-      >
-        <Icon
-          name="payment"
-          size={24}
-          color={COLORS.white}
-          style={{ marginRight: 8 }}
-        />
-        <Text style={{ color: COLORS.white, fontWeight: "bold", fontSize: 16 }}>
-          Record Payment
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.actionRow}>
+        <TouchableOpacity
+          style={[styles.fab, styles.recordPaymentFab]}
+          onPress={() => setModalVisible(true)}
+        >
+          <Icon
+            name="payment"
+            size={22}
+            color={COLORS.white}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={{ color: COLORS.white, fontWeight: "bold", fontSize: 16 }}>
+            Record Payment
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.fab, styles.addDueFab]}
+          onPress={() => setDueModalVisible(true)}
+        >
+          <Icon name="add" size={20} color={COLORS.white} />
+          <Text style={styles.addDueFabText}>Add Due</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Record Payment Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
@@ -300,6 +348,58 @@ const VendorLedgerScreen = ({ navigation, route }) => {
                 <ActivityIndicator color={COLORS.white} />
               ) : (
                 <Text style={styles.submitBtnText}>Save Payment</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={dueModalVisible} transparent animationType="slide">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginBottom: 20,
+              }}
+            >
+              <Text style={styles.modalTitle}>Add Outstanding</Text>
+              <TouchableOpacity onPress={() => setDueModalVisible(false)}>
+                <Icon name="close" size={24} color={COLORS.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Amount (â‚¹) *</Text>
+            <TextInput
+              style={styles.input}
+              value={dueAmount}
+              onChangeText={setDueAmount}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+            />
+
+            <Text style={styles.label}>Remarks (Optional)</Text>
+            <TextInput
+              style={[styles.input, { height: 80 }]}
+              value={dueRemark}
+              onChangeText={setDueRemark}
+              multiline
+              placeholder="Reason for adding due..."
+            />
+
+            <TouchableOpacity
+              style={styles.submitBtn}
+              onPress={handleAddDue}
+              disabled={dueSubmitting}
+            >
+              {dueSubmitting ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.submitBtnText}>Save Due</Text>
               )}
             </TouchableOpacity>
           </View>

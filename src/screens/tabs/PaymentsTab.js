@@ -187,7 +187,7 @@ const PaymentsTab = ({ user, navigation }) => {
             { color: vendor.balance > 0 ? COLORS.danger : COLORS.success },
           ]}
         >
-          ₹{vendor.balance.toFixed(2)}
+          {"\u20B9"}{vendor.balance.toFixed(2)}
         </Text>
       </View>
     </TouchableOpacity>
@@ -245,17 +245,25 @@ const PaymentsTab = ({ user, navigation }) => {
           name={
             item.ledgerType === "Purchase"
               ? "receipt"
-              : "account-balance-wallet"
+              : item.ledgerType === "Adjustment"
+                ? "add-circle"
+                : "account-balance-wallet"
           }
           size={24}
-          color={item.ledgerType === "Purchase" ? COLORS.danger : COLORS.success}
+          color={
+            item.ledgerType === "Purchase" || item.ledgerType === "Adjustment"
+              ? COLORS.danger
+              : COLORS.success
+          }
         />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.ledgerTitle}>
           {item.ledgerType === "Purchase"
             ? `Bill: ${item.item_name}`
-            : "Payment Received"}
+            : item.ledgerType === "Adjustment"
+              ? "Outstanding Added"
+              : "Payment Received"}
         </Text>
         <Text style={styles.ledgerDate}>
           {new Date(item.date).toLocaleDateString()}{" "}
@@ -270,7 +278,8 @@ const PaymentsTab = ({ user, navigation }) => {
         {item.remarks && (
           <Text style={styles.ledgerRemarks}>{item.remarks}</Text>
         )}
-        {item.ledgerType !== "Purchase" && item.image_url ? (
+        {(item.ledgerType === "Payment" || item.ledgerType === "Adjustment") &&
+        item.image_url ? (
           <TouchableOpacity
             style={styles.proofBtn}
             onPress={() => openViewer(item.image_url)}
@@ -288,11 +297,16 @@ const PaymentsTab = ({ user, navigation }) => {
           styles.ledgerAmount,
           {
             color:
-              item.ledgerType === "Purchase" ? COLORS.danger : COLORS.success,
+              item.ledgerType === "Purchase" || item.ledgerType === "Adjustment"
+                ? COLORS.danger
+                : COLORS.success,
           },
         ]}
       >
-        {item.ledgerType === "Purchase" ? "+" : "-"} ₹
+        {item.ledgerType === "Purchase" || item.ledgerType === "Adjustment"
+          ? "+"
+          : "-"}{" "}
+        {"\u20B9"}
         {parseFloat(item.value).toFixed(2)}
       </Text>
     </View>
@@ -432,3 +446,4 @@ const PaymentsTab = ({ user, navigation }) => {
 };
 
 export default PaymentsTab;
+
