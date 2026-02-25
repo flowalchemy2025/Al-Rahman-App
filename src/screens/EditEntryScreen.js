@@ -31,8 +31,13 @@ const EditEntryScreen = ({ navigation, route }) => {
   const isPresetUnit = UNIT_PRESETS.includes(initialUnit);
 
   const [loading, setLoading] = useState(false);
-  const [imageUri, setImageUri] = useState(
-    entry.image_url ? entry.image_url.split(",")[0] : null,
+  const [imageUris, setImageUris] = useState(
+    entry.image_url
+      ? entry.image_url
+          .split(",")
+          .map((u) => u.trim())
+          .filter(Boolean)
+      : [],
   );
   const [imageChanged, setImageChanged] = useState(false);
 
@@ -56,6 +61,20 @@ const EditEntryScreen = ({ navigation, route }) => {
   useEffect(() => {
     loadData();
   }, []);
+
+  const splitCsv = (value) =>
+    value
+      ? value
+          .split(",")
+          .map((v) => v.trim())
+          .filter(Boolean)
+      : [];
+
+  const deleteImagesByCsv = async (filenamesCsv) => {
+    const filenames = splitCsv(filenamesCsv);
+    if (!filenames.length) return;
+    await Promise.all(filenames.map((filename) => deleteImage(filename)));
+  };
 
   const loadData = async () => {
     // Determine Vendor List based on Branch
@@ -93,17 +112,22 @@ const EditEntryScreen = ({ navigation, route }) => {
       allowsEditing: false,
       quality: 0.8,
     });
-    if (!result.canceled && result.assets) {
-      setImageUri(result.assets[0].uri);
+    if (!result.canceled && result.assets?.length) {
+      setImageUris((prev) => [...prev, result.assets[0].uri]);
       setImageChanged(true);
     }
+  };
+
+  const removeImage = (uriToRemove) => {
+    setImageUris((prev) => prev.filter((uri) => uri !== uriToRemove));
+    setImageChanged(true);
   };
 
   const handleUpdate = async () => {
     const finalItemName =
       selectedItemName === "Others" ? customItemName : selectedItemName;
     const finalUnit = unit === "Others" ? customUnit : unit;
-    if (!imageUri) return Alert.alert("Error", "Please add an image");
+    if (!imageUris.length) return Alert.alert("Error", "Please add an image");
     if (!finalItemName.trim() || !quantity.trim() || !price.trim() || !finalUnit.trim())
       return Alert.alert("Error", "Please check your inputs");
 
@@ -113,11 +137,14 @@ const EditEntryScreen = ({ navigation, route }) => {
       let updatedImageFilename = entry.image_filename;
 
       if (imageChanged) {
-        if (entry.image_filename) await deleteImage(entry.image_filename);
-        const imageResult = await uploadImage(imageUri);
-        if (!imageResult.success) throw new Error("Image upload failed");
-        updatedImageUrl = imageResult.url;
-        updatedImageFilename = imageResult.filename;
+        await deleteImagesByCsv(entry.image_filename);
+        const uploadResults = await Promise.all(
+          imageUris.map((uri) => uploadImage(uri)),
+        );
+        const failedUpload = uploadResults.find((img) => !img.success);
+        if (failedUpload) throw new Error(failedUpload.error || "Image upload failed");
+        updatedImageUrl = uploadResults.map((img) => img.url).join(",");
+        updatedImageFilename = uploadResults.map((img) => img.filename).join(",");
       }
 
       const isBypass = selectedVendor === "BYPASS";
@@ -156,7 +183,7 @@ const EditEntryScreen = ({ navigation, route }) => {
         onPress: async () => {
           setLoading(true);
           try {
-            if (entry.image_filename) await deleteImage(entry.image_filename);
+            await deleteImagesByCsv(entry.image_filename);
             await deletePurchaseEntry(entry.id);
             setLoading(false);
             navigation.goBack();
@@ -191,12 +218,15 @@ const EditEntryScreen = ({ navigation, route }) => {
         keyboardShouldPersistTaps="handled"
       >
         <TouchableOpacity style={styles.imageContainer} onPress={openCamera}>
-          {imageUri ? (
+          {imageUris.length ? (
             <>
-              <Image source={{ uri: imageUri }} style={styles.image} />
+              <Image
+                source={{ uri: imageUris[imageUris.length - 1] }}
+                style={styles.image}
+              />
               <View style={styles.imageOverlay}>
-                <Icon name="edit" size={32} color={COLORS.white} />
-                <Text style={{ color: COLORS.white }}>Change Image</Text>
+                <Icon name="add-a-photo" size={32} color={COLORS.white} />
+                <Text style={{ color: COLORS.white }}>Add Photo</Text>
               </View>
             </>
           ) : (
@@ -206,6 +236,36 @@ const EditEntryScreen = ({ navigation, route }) => {
             </View>
           )}
         </TouchableOpacity>
+        {imageUris.length > 0 && (
+          <View style={styles.imageActionsRow}>
+            <Text style={styles.imageCountText}>
+              {imageUris.length} photo{imageUris.length > 1 ? "s" : ""} added
+            </Text>
+            <TouchableOpacity style={styles.addMoreImageBtn} onPress={openCamera}>
+              <Icon name="add-a-photo" size={18} color={COLORS.white} />
+              <Text style={styles.addMoreImageBtnText}>Add Photo</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {imageUris.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.imageThumbScroll}
+          >
+            {imageUris.map((uri, index) => (
+              <View key={`${uri}-${index}`} style={styles.imageThumbWrap}>
+                <Image source={{ uri }} style={styles.imageThumb} />
+                <TouchableOpacity
+                  style={styles.removeThumbBtn}
+                  onPress={() => removeImage(uri)}
+                >
+                  <Icon name="close" size={14} color={COLORS.white} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        )}
 
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Item Name *</Text>

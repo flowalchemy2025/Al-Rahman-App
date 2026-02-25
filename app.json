@@ -20,7 +20,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "This app requires camera access to take photos of purchased items.",
         "NSPhotoLibraryUsageDescription": "This app requires photo library access to upload item images.",
-        "NSPhotoLibraryAddUsageDescription": "This app requires permission to save photos to your library."
+        "NSPhotoLibraryAddUsageDescription": "This app requires permission to save photos to your library.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -35,7 +36,8 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -50,6 +52,11 @@
       ],
       "expo-font",
       "expo-asset"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8e8417d5-b461-4d48-839f-8214ab0b267b"
+      }
+    }
   }
 }

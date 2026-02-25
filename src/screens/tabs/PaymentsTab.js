@@ -432,4 +432,3 @@ const PaymentsTab = ({ user, navigation }) => {
 };
 
 export default PaymentsTab;
-

@@ -23,7 +23,7 @@ const UNITS = ["Kg", "Count", "Litre", "Box", "Gram", "Packet", "Dozen", "Others
 const AddItemScreen = ({ navigation, route }) => {
   const { user } = route.params;
   const [loading, setLoading] = useState(false);
-  const [imageUri, setImageUri] = useState(null);
+  const [imageUris, setImageUris] = useState([]);
 
   // Form State
   const [branchItems, setBranchItems] = useState([]);
@@ -73,7 +73,14 @@ const AddItemScreen = ({ navigation, route }) => {
       allowsEditing: false,
       quality: 0.8,
     });
-    if (!result.canceled && result.assets) setImageUri(result.assets[0].uri);
+    if (!result.canceled && result.assets?.length) {
+      const newUri = result.assets[0].uri;
+      setImageUris((prev) => [...prev, newUri]);
+    }
+  };
+
+  const removeImage = (uriToRemove) => {
+    setImageUris((prev) => prev.filter((uri) => uri !== uriToRemove));
   };
 
   const handleSubmit = async () => {
@@ -81,16 +88,19 @@ const AddItemScreen = ({ navigation, route }) => {
       selectedItemName === "Others" ? customItemName : selectedItemName;
     const finalUnit = unit === "Others" ? customUnit : unit;
 
-    if (!imageUri)
-      return Alert.alert("Error", "Please take a photo of the bill/item");
+    if (!imageUris.length)
+      return Alert.alert("Error", "Please take at least one photo of the bill/item");
     if (!finalItemName.trim() || !quantity.trim() || !price.trim() || !finalUnit.trim())
       return Alert.alert("Error", "Please fill required fields");
     if (!selectedVendor) return Alert.alert("Error", "Please select a vendor");
 
     setLoading(true);
     try {
-      const imageResult = await uploadImage(imageUri);
-      if (!imageResult.success) throw new Error("Image upload failed");
+      const uploadedImages = await Promise.all(
+        imageUris.map((uri) => uploadImage(uri)),
+      );
+      const failedImage = uploadedImages.find((img) => !img.success);
+      if (failedImage) throw new Error(failedImage.error || "Image upload failed");
 
       const isBypass = selectedVendor === "BYPASS";
 
@@ -100,8 +110,8 @@ const AddItemScreen = ({ navigation, route }) => {
         unit: finalUnit.trim(),
         price: parseFloat(price),
         remarks: remarks.trim(),
-        image_url: imageResult.url,
-        image_filename: imageResult.filename,
+        image_url: uploadedImages.map((img) => img.url).join(","),
+        image_filename: uploadedImages.map((img) => img.filename).join(","),
         created_by: user.id,
         branch_name: user.branches[0],
         vendor_id: isBypass ? null : selectedVendor,
@@ -143,8 +153,11 @@ const AddItemScreen = ({ navigation, route }) => {
       >
         {/* Strictly Camera Only */}
         <TouchableOpacity style={styles.imageContainer} onPress={openCamera}>
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.image} />
+          {imageUris.length ? (
+            <Image
+              source={{ uri: imageUris[imageUris.length - 1] }}
+              style={styles.image}
+            />
           ) : (
             <View style={styles.imagePlaceholder}>
               <Icon name="camera-alt" size={48} color={COLORS.textMuted} />
@@ -152,6 +165,39 @@ const AddItemScreen = ({ navigation, route }) => {
             </View>
           )}
         </TouchableOpacity>
+        {imageUris.length > 0 && (
+          <View style={styles.imageActionsRow}>
+            <Text style={styles.imageCountText}>
+              {imageUris.length} photo{imageUris.length > 1 ? "s" : ""} added
+            </Text>
+            <TouchableOpacity
+              style={styles.addMoreImageBtn}
+              onPress={openCamera}
+            >
+              <Icon name="add-a-photo" size={18} color={COLORS.white} />
+              <Text style={styles.addMoreImageBtnText}>Add Photo</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        {imageUris.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.imageThumbScroll}
+          >
+            {imageUris.map((uri, index) => (
+              <View key={`${uri}-${index}`} style={styles.imageThumbWrap}>
+                <Image source={{ uri }} style={styles.imageThumb} />
+                <TouchableOpacity
+                  style={styles.removeThumbBtn}
+                  onPress={() => removeImage(uri)}
+                >
+                  <Icon name="close" size={14} color={COLORS.white} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        )}
 
         {/* Item Name Bubbles */}
         <View style={styles.inputContainer}>
