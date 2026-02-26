@@ -52,6 +52,27 @@ export const uploadImage = async (imageUri) => {
   }
 };
 
+export const uploadImages = async (imageUris = []) => {
+  try {
+    const validUris = imageUris.filter(Boolean);
+    if (!validUris.length) {
+      return { success: false, error: "No images provided" };
+    }
+
+    const uploads = await Promise.all(validUris.map((uri) => uploadImage(uri)));
+    const failed = uploads.find((u) => !u.success);
+    if (failed) {
+      return { success: false, error: failed.error || "Image upload failed" };
+    }
+
+    const urls = uploads.map((u) => u.url);
+    const filenames = uploads.map((u) => u.filename);
+    return { success: true, urls, filenames };
+  } catch (error) {
+    return { success: false, error: error.message || "Failed to upload images" };
+  }
+};
+
 export const deleteImage = async (filename) => {
   try {
     await axios.delete(`${IMAGE_API_BASE_URL}/${filename}`);
@@ -62,6 +83,17 @@ export const deleteImage = async (filename) => {
       success: false,
       error: error.message || "Failed to delete image",
     };
+  }
+};
+
+export const deleteImages = async (filenames = []) => {
+  try {
+    const valid = filenames.filter(Boolean);
+    if (!valid.length) return { success: true };
+    await Promise.all(valid.map((name) => deleteImage(name)));
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message || "Failed to delete images" };
   }
 };
 

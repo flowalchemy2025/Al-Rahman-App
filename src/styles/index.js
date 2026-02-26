@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+import { Platform, StatusBar, StyleSheet } from "react-native";
 import { COLORS } from "./theme";
 
 export const appStyles = StyleSheet.create({
@@ -98,7 +98,7 @@ export const dashboardStyles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     backgroundColor: COLORS.primaryDark,
-    paddingTop: 50,
+    paddingTop: Platform.OS === "ios" ? 50 : 12,
     paddingBottom: 15,
     paddingHorizontal: 20,
     flexDirection: "row",

@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { addPurchaseEntry, supabase } from "../services/supabase";
-import { uploadImage } from "../services/imageService";
+import { uploadImages } from "../services/imageService";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { addItemStyles as styles } from "../styles";
 import { COLORS } from "../styles/theme";

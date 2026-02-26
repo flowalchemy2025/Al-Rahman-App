@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { signOut } from "../services/supabase";
 
 import ItemsCalendarTab from "./tabs/ItemsCalendarTab";
@@ -15,6 +16,7 @@ import { COLORS } from "../styles/theme";
 const Tab = createBottomTabNavigator();
 
 const DashboardScreen = ({ navigation, route }) => {
+  const insets = useSafeAreaInsets();
   const [user, setUser] = useState(route.params?.user || null);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
@@ -112,8 +114,9 @@ const DashboardScreen = ({ navigation, route }) => {
           tabBarActiveTintColor: COLORS.primary,
           tabBarInactiveTintColor: COLORS.textMuted,
           tabBarStyle: {
-            paddingBottom: 5,
-            height: 60,
+            paddingBottom: 8 + insets.bottom,
+            paddingTop: 6,
+            height: 56 + insets.bottom,
             backgroundColor: COLORS.white,
             borderTopColor: COLORS.border,
           },

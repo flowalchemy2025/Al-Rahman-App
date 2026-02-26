@@ -13,7 +13,11 @@ import { COLORS } from "../styles/theme";
 
 const ViewEntryScreen = ({ navigation, route }) => {
   const { entry } = route.params;
-  const imageUri = entry.image_url ? entry.image_url.split(",")[0] : null;
+  const imageUris = (entry.image_url || "")
+    .split(",")
+    .map((i) => i.trim())
+    .filter(Boolean);
+  const [activeImageUri, setActiveImageUri] = useState(imageUris[0] || null);
 
   const [viewerVisible, setViewerVisible] = useState(false);
 
@@ -31,11 +35,11 @@ const ViewEntryScreen = ({ navigation, route }) => {
         <TouchableOpacity
           style={styles.imageContainer}
           onPress={() => {
-            if (imageUri) setViewerVisible(true);
+            if (activeImageUri) setViewerVisible(true);
           }}
         >
-          {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.image} />
+          {activeImageUri ? (
+            <Image source={{ uri: activeImageUri }} style={styles.image} />
           ) : (
             <View style={styles.imagePlaceholder}>
               <Icon
@@ -46,6 +50,29 @@ const ViewEntryScreen = ({ navigation, route }) => {
             </View>
           )}
         </TouchableOpacity>
+        {imageUris.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 20 }}
+          >
+            {imageUris.map((uri, index) => (
+              <TouchableOpacity
+                key={`${uri}-${index}`}
+                onPress={() => setActiveImageUri(uri)}
+                style={{
+                  marginRight: 10,
+                  borderWidth: activeImageUri === uri ? 2 : 0,
+                  borderColor: COLORS.primary,
+                  borderRadius: 8,
+                  overflow: "hidden",
+                }}
+              >
+                <Image source={{ uri }} style={{ width: 68, height: 68 }} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
         <View style={styles.card}>
           <Text style={styles.title}>{entry.item_name}</Text>
@@ -95,9 +122,9 @@ const ViewEntryScreen = ({ navigation, route }) => {
           >
             <Icon name="close" size={32} color={COLORS.white} />
           </TouchableOpacity>
-          {imageUri && (
+          {activeImageUri && (
             <Image
-              source={{ uri: imageUri }}
+              source={{ uri: activeImageUri }}
               style={styles.viewerImage}
               resizeMode="contain"
             />

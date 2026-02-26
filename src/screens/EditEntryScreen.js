@@ -17,13 +17,21 @@ import {
   deletePurchaseEntry,
   supabase,
 } from "../services/supabase";
-import { uploadImage, deleteImage } from "../services/imageService";
+import {
+  uploadImages,
+  deleteImages,
+} from "../services/imageService";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { editEntryStyles as styles } from "../styles";
 import { COLORS } from "../styles/theme";
 
 const UNIT_PRESETS = ["Kg", "Count", "Litre", "Box", "Gram", "Packet", "Dozen"];
 const UNITS = [...UNIT_PRESETS, "Others"];
+const parseCsv = (value) =>
+  (value || "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
 
 const EditEntryScreen = ({ navigation, route }) => {
   const { entry } = route.params;
@@ -133,8 +141,8 @@ const EditEntryScreen = ({ navigation, route }) => {
 
     setLoading(true);
     try {
-      let updatedImageUrl = entry.image_url;
-      let updatedImageFilename = entry.image_filename;
+      let updatedImageUrls = parseCsv(entry.image_url);
+      let updatedImageFilenames = parseCsv(entry.image_filename);
 
       if (imageChanged) {
         await deleteImagesByCsv(entry.image_filename);
@@ -155,8 +163,8 @@ const EditEntryScreen = ({ navigation, route }) => {
         unit: finalUnit.trim(),
         price: parseFloat(price),
         remarks: remarks.trim(),
-        image_url: updatedImageUrl,
-        image_filename: updatedImageFilename,
+        image_url: updatedImageUrls.join(","),
+        image_filename: updatedImageFilenames.join(","),
         updated_at: new Date().toISOString(),
         vendor_id: isBypass ? null : selectedVendor,
       };
