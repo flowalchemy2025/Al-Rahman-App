@@ -8,7 +8,7 @@ import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { apiRateLimiter } from "./middleware/rateLimit.js";
 
 const app = express();
-
+app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors());
 app.use(morgan(env.nodeEnv === "production" ? "combined" : "dev"));

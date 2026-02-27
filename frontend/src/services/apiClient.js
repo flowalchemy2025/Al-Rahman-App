@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
-const API_BASE_URL = "http://10.0.2.2:4000/api/v1";
+const API_BASE_URL = "https://kareemsnagpur.com/alrahman/api/v1";
 const ACCESS_TOKEN_KEY = "access_token";
 
 export const api = axios.create({
@@ -19,10 +19,16 @@ api.interceptors.request.use(async (config) => {
 
 export const backendAuth = {
   async login(usernameOrMobile, password) {
-    const response = await api.post("/auth/login", { usernameOrMobile, password });
+    const response = await api.post("/auth/login", {
+      usernameOrMobile,
+      password,
+    });
     const payload = response.data?.data;
     if (payload?.session?.access_token) {
-      await AsyncStorage.setItem(ACCESS_TOKEN_KEY, payload.session.access_token);
+      await AsyncStorage.setItem(
+        ACCESS_TOKEN_KEY,
+        payload.session.access_token,
+      );
     }
     return payload;
   },
@@ -70,7 +76,9 @@ export const backendPayments = {
     return api.get("/payments", { params }).then((r) => r.data?.data);
   },
   createVendorTransaction(payload) {
-    return api.post("/payments/vendor-transactions", payload).then((r) => r.data?.data);
+    return api
+      .post("/payments/vendor-transactions", payload)
+      .then((r) => r.data?.data);
   },
 };
 
