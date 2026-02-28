@@ -12,10 +12,7 @@ import {
   Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import {
-  supabase,
-} from "../services/supabase";
-import { backendPurchases } from "../services/apiClient";
+import { backendItems, backendPurchases, backendUsers } from "../services/apiClient";
 import {
   uploadImage,
   deleteImage,
@@ -84,22 +81,17 @@ const EditEntryScreen = ({ navigation, route }) => {
   };
 
   const loadData = async () => {
-    // Determine Vendor List based on Branch
-    const { data: vendorData } = await supabase
-      .from("users")
-      .select("*")
-      .eq("role", "Vendor")
-      .contains("branches", [entry.branch_name]);
-    if (vendorData)
-      setVendors([{ id: "BYPASS", full_name: "Local Shop" }, ...vendorData]);
+    try {
+      // Determine Vendor List based on Branch
+      const vendorData = await backendUsers.list({
+        role: "Vendor",
+        branchName: entry.branch_name,
+      });
+      setVendors([{ id: "BYPASS", full_name: "Local Shop" }, ...(vendorData || [])]);
 
-    // Fetch Items List
-    const { data: itemData } = await supabase
-      .from("branch_items")
-      .select("item_name")
-      .eq("branch_name", entry.branch_name);
-    if (itemData) {
-      const itemsList = itemData.map((i) => i.item_name);
+      // Fetch Items List
+      const itemData = await backendItems.list({ branchName: entry.branch_name });
+      const itemsList = (itemData || []).map((i) => i.item_name);
       setBranchItems(itemsList);
 
       if (itemsList.includes(entry.item_name)) {
@@ -108,6 +100,8 @@ const EditEntryScreen = ({ navigation, route }) => {
         setSelectedItemName("Others");
         setCustomItemName(entry.item_name);
       }
+    } catch (error) {
+      Alert.alert("Error", error?.response?.data?.error || "Failed to load form data");
     }
   };
 

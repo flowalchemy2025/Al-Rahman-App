@@ -44,6 +44,18 @@ export const purchasesService = {
     return data;
   },
 
+  async updateVendorComment(id, comment) {
+    const { data, error } = await supabaseAdmin
+      .from("purchase_entries")
+      .update({ vendor_comment: comment })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(400, error.message);
+    return data;
+  },
+
   async remove(id) {
     const { data: existing } = await supabaseAdmin
       .from("purchase_entries")

@@ -11,7 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
-import { updateUserProfile } from "../services/supabase";
+import { backendUsers } from "../services/apiClient";
 import { setupProfileModalStyles as styles } from "../styles";
 import { COLORS } from "../styles/theme";
 
@@ -51,17 +51,17 @@ const SetupProfileModal = ({
       mobile_number: mobileNumber.trim(),
     };
 
-    const result = await updateUserProfile(user.id, updates);
-    setLoading(false);
-
-    if (result.success) {
+    try {
+      const updatedUser = await backendUsers.updateMyProfile(updates);
+      setLoading(false);
       Alert.alert(
         "Success",
         isForced ? "Profile setup complete!" : "Profile updated successfully!",
       );
-      onComplete(result.data);
-    } else {
-      Alert.alert("Error", result.error);
+      onComplete(updatedUser);
+    } catch (error) {
+      setLoading(false);
+      Alert.alert("Error", error?.response?.data?.error || "Could not update profile");
     }
   };
 

@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { signOut } from "../services/supabase";
+import { backendAuth } from "../services/apiClient";
 
 import ItemsCalendarTab from "./tabs/ItemsCalendarTab";
 import AnalyticsTab from "./tabs/AnalyticsTab";
@@ -30,7 +30,7 @@ const DashboardScreen = ({ navigation, route }) => {
   }, [navigation, user]);
 
   const handleLogout = async () => {
-    await signOut();
+    await backendAuth.logout();
     await AsyncStorage.removeItem("user");
     navigation.replace("Login");
   };

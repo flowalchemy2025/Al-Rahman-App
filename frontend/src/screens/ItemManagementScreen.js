@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
-import { supabase } from "../services/supabase";
+import { backendItems } from "../services/apiClient";
 import { itemManagementStyles as styles } from "../styles";
 import { COLORS } from "../styles/theme";
 
@@ -27,32 +27,32 @@ const ItemManagementScreen = ({ navigation, route }) => {
   }, []);
 
   const fetchItems = async () => {
-    setFetching(true);
-    const { data } = await supabase
-      .from("branch_items")
-      .select("*")
-      .eq("branch_name", branchName)
-      .order("created_at", { ascending: false });
-    if (data) setItems(data);
-    setFetching(false);
+    try {
+      setFetching(true);
+      const data = await backendItems.list({ branchName });
+      setItems(data || []);
+    } catch (error) {
+      Alert.alert("Error", error?.response?.data?.error || "Could not fetch items.");
+    } finally {
+      setFetching(false);
+    }
   };
 
   const handleAddItem = async () => {
     if (!newItemName.trim()) return Alert.alert("Error", "Enter an item name");
-    setLoading(true);
-    const { error } = await supabase
-      .from("branch_items")
-      .insert([
-        {
-          item_name: newItemName.trim(),
-          branch_name: branchName,
-          created_by: user.id,
-        },
-      ]);
-    setLoading(false);
-    if (!error) {
+    try {
+      setLoading(true);
+      await backendItems.create({
+        item_name: newItemName.trim(),
+        branch_name: branchName,
+        created_by: user.id,
+      });
       setNewItemName("");
       fetchItems();
+    } catch (error) {
+      Alert.alert("Error", error?.response?.data?.error || "Could not add item.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -63,13 +63,15 @@ const ItemManagementScreen = ({ navigation, route }) => {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
-          setLoading(true);
-          const { error } = await supabase
-            .from("branch_items")
-            .delete()
-            .eq("id", id);
-          setLoading(false);
-          if (!error) fetchItems();
+          try {
+            setLoading(true);
+            await backendItems.remove(id);
+            fetchItems();
+          } catch (error) {
+            Alert.alert("Error", error?.response?.data?.error || "Could not delete item.");
+          } finally {
+            setLoading(false);
+          }
         },
       },
     ]);

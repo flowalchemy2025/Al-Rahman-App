@@ -172,6 +172,18 @@ export const validateUpdatePurchase = (req, res, next) => {
   }
 };
 
+export const validateVendorCommentUpdate = (req, res, next) => {
+  try {
+    const errors = [];
+    if (!isIntegerId(req.params.id)) errors.push("id param must be a positive integer");
+    if (!optionalString(req.body?.comment)) errors.push("comment must be a string");
+    if (errors.length) failValidation(errors);
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const validatePaymentsList = (req, res, next) => {
   try {
     const { vendorId, startDate, endDate } = req.query || {};
@@ -195,6 +207,49 @@ export const validateCreateVendorTransaction = (req, res, next) => {
     if (Number.isNaN(Number(amount)) || Number(amount) === 0) {
       errors.push("amount must be a non-zero number");
     }
+    if (!isIntegerId(created_by)) errors.push("created_by must be a positive integer");
+    if (errors.length) failValidation(errors);
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const validateMyProfileUpdate = (req, res, next) => {
+  try {
+    const { full_name, mobile_number } = req.body || {};
+    const errors = [];
+    if (!nonEmptyString(full_name)) errors.push("full_name is required");
+    if (!nonEmptyString(mobile_number)) {
+      errors.push("mobile_number is required");
+    } else if (!/^\d{10}$/.test(String(mobile_number).trim())) {
+      errors.push("mobile_number must be a 10-digit number");
+    }
+    if (errors.length) failValidation(errors);
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const validateItemsList = (req, res, next) => {
+  try {
+    const { branchName } = req.query || {};
+    if (branchName !== undefined && !optionalString(branchName)) {
+      failValidation(["branchName must be a string"]);
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const validateCreateItem = (req, res, next) => {
+  try {
+    const { item_name, branch_name, created_by } = req.body || {};
+    const errors = [];
+    if (!nonEmptyString(item_name)) errors.push("item_name is required");
+    if (!nonEmptyString(branch_name)) errors.push("branch_name is required");
     if (!isIntegerId(created_by)) errors.push("created_by must be a positive integer");
     if (errors.length) failValidation(errors);
     next();

@@ -43,3 +43,16 @@ export const deleteUser = asyncHandler(async (req, res) => {
   });
   res.json({ success: true });
 });
+
+export const updateMyProfile = asyncHandler(async (req, res) => {
+  const data = await usersService.updateMyProfile({
+    authUserId: req.authUser.id,
+    updates: req.body,
+  });
+  await auditService.log(req, "users.profile.update", {
+    targetType: "users",
+    targetId: data.id,
+    metadata: { changedKeys: Object.keys(req.body || {}) },
+  });
+  res.json({ success: true, data });
+});

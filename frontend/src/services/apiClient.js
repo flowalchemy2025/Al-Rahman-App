@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
-const API_BASE_URL = "https://kareemsnagpur.com/alrahman/api/v1";
+const API_BASE_URL = "http://10.0.2.2:4000/api/v1";
 const ACCESS_TOKEN_KEY = "access_token";
 
 export const api = axios.create({
@@ -54,6 +54,9 @@ export const backendUsers = {
   remove(id) {
     return api.delete(`/users/${id}`).then((r) => r.data?.success);
   },
+  updateMyProfile(payload) {
+    return api.patch("/users/me/profile", payload).then((r) => r.data?.data);
+  },
 };
 
 export const backendPurchases = {
@@ -68,6 +71,11 @@ export const backendPurchases = {
   },
   remove(id) {
     return api.delete(`/purchases/${id}`).then((r) => r.data?.success);
+  },
+  updateVendorComment(id, comment) {
+    return api
+      .patch(`/purchases/${id}/vendor-comment`, { comment })
+      .then((r) => r.data?.data);
   },
 };
 
@@ -87,5 +95,17 @@ export const backendLedger = {
     return api
       .get(`/ledger/vendor/${vendorId}`, { params: { branchName } })
       .then((r) => r.data?.data);
+  },
+};
+
+export const backendItems = {
+  list(params = {}) {
+    return api.get("/items", { params }).then((r) => r.data?.data);
+  },
+  create(payload) {
+    return api.post("/items", payload).then((r) => r.data?.data);
+  },
+  remove(id) {
+    return api.delete(`/items/${id}`).then((r) => r.data?.success);
   },
 };

@@ -14,9 +14,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import EntryCard from "../../components/EntryCard";
 import { backendPurchases } from "../../services/apiClient";
-import {
-  updateVendorComment,
-} from "../../services/supabase";
 import { itemsCalendarStyles as styles } from "../../styles";
 import { COLORS } from "../../styles/theme";
 
@@ -81,14 +78,17 @@ const ItemsCalendarTab = ({ user, navigation }) => {
 
   const handleSaveComment = async () => {
     if (!selectedEntry) return;
-    setLoading(true);
-    const res = await updateVendorComment(selectedEntry.id, commentText);
-    setLoading(false);
-    setCommentModal(false);
-    if (res.success) {
+    try {
+      setLoading(true);
+      await backendPurchases.updateVendorComment(selectedEntry.id, commentText);
+      setCommentModal(false);
       Alert.alert("Success", "Comment saved");
       loadData();
-    } else Alert.alert("Error", res.error);
+    } catch (error) {
+      Alert.alert("Error", error?.response?.data?.error || "Could not save comment");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const dayEntries = entries.filter(

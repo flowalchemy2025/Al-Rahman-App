@@ -12,8 +12,7 @@ import {
   Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { supabase } from "../services/supabase";
-import { backendPurchases } from "../services/apiClient";
+import { backendItems, backendPurchases, backendUsers } from "../services/apiClient";
 import { uploadImage } from "../services/imageService";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { addItemStyles as styles } from "../styles";
@@ -46,23 +45,20 @@ const AddItemScreen = ({ navigation, route }) => {
   }, []);
 
   const loadData = async () => {
-    // 1. Fetch Vendors assigned to this branch
-    const { data: vendorData } = await supabase
-      .from("users")
-      .select("*")
-      .eq("role", "Vendor")
-      .contains("branches", [user.branches[0]]); // assuming branch user has 1 branch active
+    try {
+      // 1. Fetch Vendors assigned to this branch
+      const vendorData = await backendUsers.list({
+        role: "Vendor",
+        branchName: user.branches[0],
+      });
+      setVendors([{ id: "BYPASS", full_name: "Local Shop" }, ...(vendorData || [])]);
 
-    if (vendorData)
-      setVendors([{ id: "BYPASS", full_name: "Local Shop" }, ...vendorData]);
-
-    // 2. Fetch Preset Items for this branch
-    const { data: itemData } = await supabase
-      .from("branch_items")
-      .select("item_name")
-      .eq("branch_name", user.branches[0]);
-
-    if (itemData) setBranchItems(itemData.map((i) => i.item_name));
+      // 2. Fetch Preset Items for this branch
+      const itemData = await backendItems.list({ branchName: user.branches[0] });
+      setBranchItems((itemData || []).map((i) => i.item_name));
+    } catch (error) {
+      Alert.alert("Error", error?.response?.data?.error || "Failed to load form data");
+    }
   };
 
   const openCamera = async () => {

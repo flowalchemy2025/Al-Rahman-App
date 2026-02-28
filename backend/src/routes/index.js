@@ -4,6 +4,7 @@ import usersRoutes from "./users.routes.js";
 import purchasesRoutes from "./purchases.routes.js";
 import paymentsRoutes from "./payments.routes.js";
 import ledgerRoutes from "./ledger.routes.js";
+import itemsRoutes from "./items.routes.js";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use("/users", usersRoutes);
 router.use("/purchases", purchasesRoutes);
 router.use("/payments", paymentsRoutes);
 router.use("/ledger", ledgerRoutes);
+router.use("/items", itemsRoutes);
 
 export default router;

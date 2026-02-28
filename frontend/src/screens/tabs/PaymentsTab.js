@@ -14,8 +14,7 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
-import { backendLedger } from "../../services/apiClient";
-import { supabase } from "../../services/supabase";
+import { backendLedger, backendUsers } from "../../services/apiClient";
 import { paymentsTabStyles as styles } from "../../styles";
 import { COLORS } from "../../styles/theme";
 
@@ -62,10 +61,7 @@ const PaymentsTab = ({ user, navigation }) => {
 
     if (user.role === "Super Admin") {
       // 1. Get all vendors
-      const { data: allVendors } = await supabase
-        .from("users")
-        .select("*")
-        .eq("role", "Vendor");
+      const allVendors = await backendUsers.list({ role: "Vendor" });
 
       if (allVendors) {
         // 2. Extract unique branches
@@ -108,11 +104,10 @@ const PaymentsTab = ({ user, navigation }) => {
       }
     } else if (user.role === "Branch") {
       const branchName = user.branches[0];
-      const { data: vendors } = await supabase
-        .from("users")
-        .select("*")
-        .eq("role", "Vendor")
-        .contains("branches", [branchName]);
+      const vendors = await backendUsers.list({
+        role: "Vendor",
+        branchName,
+      });
 
       if (vendors) {
         const vendorsWithBalances = await Promise.all(

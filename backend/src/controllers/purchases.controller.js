@@ -31,3 +31,16 @@ export const deletePurchase = asyncHandler(async (req, res) => {
   });
   res.json({ success: true });
 });
+
+export const updateVendorComment = asyncHandler(async (req, res) => {
+  const data = await purchasesService.updateVendorComment(
+    Number(req.params.id),
+    req.body.comment,
+  );
+  await auditService.log(req, "purchases.vendor_comment.update", {
+    targetType: "purchase_entries",
+    targetId: data.id,
+    metadata: { commentLength: String(req.body.comment || "").length },
+  });
+  res.json({ success: true, data });
+});

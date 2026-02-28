@@ -96,6 +96,30 @@ export const usersService = {
     return data;
   },
 
+  async updateMyProfile({ authUserId, updates }) {
+    const existing = await this.getByAuthUserId(authUserId);
+    if (!existing) throw new ApiError(404, "User not found");
+
+    const allowed = {
+      full_name: updates.full_name,
+      mobile_number: updates.mobile_number,
+    };
+
+    const payload = Object.fromEntries(
+      Object.entries(allowed).filter(([, value]) => value !== undefined),
+    );
+
+    const { data, error } = await supabaseAdmin
+      .from("users")
+      .update(payload)
+      .eq("id", existing.id)
+      .select()
+      .single();
+
+    if (error) throw new ApiError(400, error.message);
+    return data;
+  },
+
   async remove({ userId }) {
     const { data: existing, error: exError } = await supabaseAdmin
       .from("users")
