@@ -234,6 +234,7 @@ const UserManagementScreen = ({ navigation, route }) => {
             <TextInput
               style={styles.input}
               placeholder="Username"
+              placeholderTextColor={COLORS.textMuted}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
@@ -241,6 +242,7 @@ const UserManagementScreen = ({ navigation, route }) => {
             <TextInput
               style={styles.input}
               placeholder="Password"
+              placeholderTextColor={COLORS.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -362,6 +364,7 @@ const UserManagementScreen = ({ navigation, route }) => {
               onChangeText={(t) => setEditForm({ ...editForm, password: t })}
               secureTextEntry
               placeholder="Leave blank to keep current"
+              placeholderTextColor={COLORS.textMuted}
             />
 
             <Text style={styles.label}>Assigned Branches:</Text>

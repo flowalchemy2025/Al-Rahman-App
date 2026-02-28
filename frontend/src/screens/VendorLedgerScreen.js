@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { backendLedger, backendPayments } from "../services/apiClient";
 import { uploadImage } from "../services/imageService";
 import { vendorLedgerStyles as styles } from "../styles";
@@ -69,11 +70,21 @@ const VendorLedgerScreen = ({ navigation, route }) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images, // Correct for expo-image-picker ~17.0.10
       allowsEditing: false,
-      quality: 0.8,
+      quality: 0.5,
+      allowsMultipleSelection: false,
     });
 
     if (!result.canceled && result.assets) {
-      setImageUri(result.assets[0].uri);
+      const originalUri = result.assets[0].uri;
+
+      // Auto compress via ImageManipulator
+      const manipResult = await ImageManipulator.manipulateAsync(
+        originalUri,
+        [{ resize: { width: 1024 } }], // Resize width to max 1024px while retaining aspect ratio
+        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      setImageUri(manipResult.uri);
     }
   };
 
@@ -191,10 +202,10 @@ const VendorLedgerScreen = ({ navigation, route }) => {
         ) : null}
 
         {/* View Proof Button */}
-        {item.image_url ? (
+        {item.image_url || item.bill_image_url || item.item_image_url ? (
           <TouchableOpacity
             style={styles.proofBtn}
-            onPress={() => openViewer(item.image_url)}
+            onPress={() => openViewer(item.image_url || item.bill_image_url || item.item_image_url)}
           >
             <Icon name="image" size={14} color={COLORS.accentSoft} />
             <Text style={styles.proofText}>View Proof</Text>
@@ -431,4 +442,3 @@ const VendorLedgerScreen = ({ navigation, route }) => {
 };
 
 export default VendorLedgerScreen;
-

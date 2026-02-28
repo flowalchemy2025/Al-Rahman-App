@@ -13,13 +13,52 @@ import { COLORS } from "../styles/theme";
 
 const ViewEntryScreen = ({ navigation, route }) => {
   const { entry } = route.params;
-  const imageUris = (entry.image_url || "")
+
+  const billImageUris = (entry.bill_image_url || "")
     .split(",")
     .map((i) => i.trim())
     .filter(Boolean);
-  const [activeImageUri, setActiveImageUri] = useState(imageUris[0] || null);
+
+  const itemImageUris = (entry.item_image_url || "")
+    .split(",")
+    .map((i) => i.trim())
+    .filter(Boolean);
+
+  const [activeImageUri, setActiveImageUri] = useState(
+    billImageUris[0] || itemImageUris[0] || null
+  );
 
   const [viewerVisible, setViewerVisible] = useState(false);
+
+  const renderImageScroll = (title, images) => {
+    if (images.length === 0) return null;
+    return (
+      <View style={{ marginBottom: 15 }}>
+        <Text style={{ fontSize: 16, fontWeight: "600", color: COLORS.text, marginBottom: 8, paddingHorizontal: 4 }}>{title}</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ paddingLeft: 4 }}
+        >
+          {images.map((uri, index) => (
+            <TouchableOpacity
+              key={`${uri}-${index}`}
+              onPress={() => setActiveImageUri(uri)}
+              style={{
+                marginRight: 10,
+                borderWidth: activeImageUri === uri ? 2 : 0,
+                borderColor: COLORS.primary,
+                borderRadius: 8,
+                overflow: "hidden",
+              }}
+            >
+              <Image source={{ uri }} style={{ width: 68, height: 68 }} />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -50,29 +89,11 @@ const ViewEntryScreen = ({ navigation, route }) => {
             </View>
           )}
         </TouchableOpacity>
-        {imageUris.length > 1 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 20 }}
-          >
-            {imageUris.map((uri, index) => (
-              <TouchableOpacity
-                key={`${uri}-${index}`}
-                onPress={() => setActiveImageUri(uri)}
-                style={{
-                  marginRight: 10,
-                  borderWidth: activeImageUri === uri ? 2 : 0,
-                  borderColor: COLORS.primary,
-                  borderRadius: 8,
-                  overflow: "hidden",
-                }}
-              >
-                <Image source={{ uri }} style={{ width: 68, height: 68 }} />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
+
+        <View style={{ paddingHorizontal: 16, marginTop: 15 }}>
+          {renderImageScroll("Bill Photos", billImageUris)}
+          {renderImageScroll("Item Photos", itemImageUris)}
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.title}>{entry.item_name}</Text>

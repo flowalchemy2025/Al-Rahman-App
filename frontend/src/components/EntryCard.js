@@ -11,7 +11,11 @@ const EntryCard = ({
   onAddComment,
   onViewImage,
 }) => {
-  const firstImage = item.image_url ? item.image_url.split(",")[0] : null;
+  const allImageUrls = [
+    ...(item.bill_image_url ? item.bill_image_url.split(",") : []),
+    ...(item.item_image_url ? item.item_image_url.split(",") : []),
+  ];
+  const firstImage = allImageUrls.length > 0 ? allImageUrls[0] : null;
   const isPending = item.status === "Pending";
 
   return (

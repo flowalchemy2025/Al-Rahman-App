@@ -12,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { backendItems, backendPurchases, backendUsers } from "../services/apiClient";
 import { uploadImage } from "../services/imageService";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
@@ -23,7 +24,10 @@ const UNITS = ["Kg", "Count", "Litre", "Box", "Gram", "Packet", "Dozen", "Others
 const AddItemScreen = ({ navigation, route }) => {
   const { user } = route.params;
   const [loading, setLoading] = useState(false);
-  const [imageUris, setImageUris] = useState([]);
+
+  // Separated Image States
+  const [billImageUris, setBillImageUris] = useState([]);
+  const [itemImageUris, setItemImageUris] = useState([]);
 
   // Form State
   const [branchItems, setBranchItems] = useState([]);
@@ -61,23 +65,42 @@ const AddItemScreen = ({ navigation, route }) => {
     }
   };
 
-  const openCamera = async () => {
+  const openCamera = async (type) => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted")
       return Alert.alert("Required", "Camera access is needed.");
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: false,
-      quality: 0.8,
+      quality: 0.5, // Reduced quality for compression
+      allowsMultipleSelection: false,
     });
     if (!result.canceled && result.assets?.length) {
-      const newUri = result.assets[0].uri;
-      setImageUris((prev) => [...prev, newUri]);
+      const originalUri = result.assets[0].uri;
+
+      // Auto compress via ImageManipulator
+      const manipResult = await ImageManipulator.manipulateAsync(
+        originalUri,
+        [{ resize: { width: 1024 } }], // Resize width to max 1024px while retaining aspect ratio
+        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      const newUri = manipResult.uri;
+
+      if (type === "bill") {
+        setBillImageUris((prev) => [...prev, newUri]);
+      } else {
+        setItemImageUris((prev) => [...prev, newUri]);
+      }
     }
   };
 
-  const removeImage = (uriToRemove) => {
-    setImageUris((prev) => prev.filter((uri) => uri !== uriToRemove));
+  const removeImage = (uriToRemove, type) => {
+    if (type === "bill") {
+      setBillImageUris((prev) => prev.filter((uri) => uri !== uriToRemove));
+    } else {
+      setItemImageUris((prev) => prev.filter((uri) => uri !== uriToRemove));
+    }
   };
 
   const handleSubmit = async () => {
@@ -85,19 +108,28 @@ const AddItemScreen = ({ navigation, route }) => {
       selectedItemName === "Others" ? customItemName : selectedItemName;
     const finalUnit = unit === "Others" ? customUnit : unit;
 
-    if (!imageUris.length)
-      return Alert.alert("Error", "Please take at least one photo of the bill/item");
+    // Both images are ideally required or at least bill
+    if (!billImageUris.length && !itemImageUris.length)
+      return Alert.alert("Error", "Please add at least one bill or item photo");
     if (!finalItemName.trim() || !quantity.trim() || !price.trim() || !finalUnit.trim())
       return Alert.alert("Error", "Please fill required fields");
     if (!selectedVendor) return Alert.alert("Error", "Please select a vendor");
 
     setLoading(true);
     try {
-      const uploadedImages = await Promise.all(
-        imageUris.map((uri) => uploadImage(uri)),
+      // Upload Bill Images
+      const uploadedBillImages = await Promise.all(
+        billImageUris.map((uri) => uploadImage(uri)),
       );
-      const failedImage = uploadedImages.find((img) => !img.success);
-      if (failedImage) throw new Error(failedImage.error || "Image upload failed");
+      const failedBillImage = uploadedBillImages.find((img) => !img.success);
+      if (failedBillImage) throw new Error(failedBillImage.error || "Bill image upload failed");
+
+      // Upload Item Images
+      const uploadedItemImages = await Promise.all(
+        itemImageUris.map((uri) => uploadImage(uri)),
+      );
+      const failedItemImage = uploadedItemImages.find((img) => !img.success);
+      if (failedItemImage) throw new Error(failedItemImage.error || "Item image upload failed");
 
       const isBypass = selectedVendor === "BYPASS";
 
@@ -107,8 +139,10 @@ const AddItemScreen = ({ navigation, route }) => {
         unit: finalUnit.trim(),
         price: parseFloat(price),
         remarks: remarks.trim(),
-        image_url: uploadedImages.map((img) => img.url).join(","),
-        image_filename: uploadedImages.map((img) => img.filename).join(","),
+        bill_image_url: uploadedBillImages.map((img) => img.url).join(","),
+        bill_image_filename: uploadedBillImages.map((img) => img.filename).join(","),
+        item_image_url: uploadedItemImages.map((img) => img.url).join(","),
+        item_image_filename: uploadedItemImages.map((img) => img.filename).join(","),
         created_by: user.id,
         branch_name: user.branches[0],
         vendor_id: isBypass ? null : selectedVendor,
@@ -129,6 +163,58 @@ const AddItemScreen = ({ navigation, route }) => {
   const selectedVendorLabel =
     vendors.find((v) => v.id === selectedVendor)?.full_name || "Select vendor";
 
+  const renderImageSection = (title, images, type) => (
+    <View style={{ marginBottom: 20 }}>
+      <Text style={styles.label}>{title}</Text>
+      <TouchableOpacity style={styles.imageContainer} onPress={() => openCamera(type)}>
+        {images.length ? (
+          <Image
+            source={{ uri: images[images.length - 1] }}
+            style={styles.image}
+          />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Icon name="camera-alt" size={48} color={COLORS.textMuted} />
+            <Text style={styles.imagePlaceholderText}>Take Photo</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      {images.length > 0 && (
+        <View style={styles.imageActionsRow}>
+          <Text style={styles.imageCountText}>
+            {images.length} photo{images.length > 1 ? "s" : ""} added
+          </Text>
+          <TouchableOpacity
+            style={styles.addMoreImageBtn}
+            onPress={() => openCamera(type)}
+          >
+            <Icon name="add-a-photo" size={18} color={COLORS.white} />
+            <Text style={styles.addMoreImageBtnText}>Add Photo</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {images.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.imageThumbScroll}
+        >
+          {images.map((uri, index) => (
+            <View key={`${uri}-${index}`} style={styles.imageThumbWrap}>
+              <Image source={{ uri }} style={styles.imageThumb} />
+              <TouchableOpacity
+                style={styles.removeThumbBtn}
+                onPress={() => removeImage(uri, type)}
+              >
+                <Icon name="close" size={14} color={COLORS.white} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -146,53 +232,15 @@ const AddItemScreen = ({ navigation, route }) => {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Strictly Camera Only */}
-        <TouchableOpacity style={styles.imageContainer} onPress={openCamera}>
-          {imageUris.length ? (
-            <Image
-              source={{ uri: imageUris[imageUris.length - 1] }}
-              style={styles.image}
-            />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Icon name="camera-alt" size={48} color={COLORS.textMuted} />
-              <Text style={styles.imagePlaceholderText}>Take Photo</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-        {imageUris.length > 0 && (
-          <View style={styles.imageActionsRow}>
-            <Text style={styles.imageCountText}>
-              {imageUris.length} photo{imageUris.length > 1 ? "s" : ""} added
-            </Text>
-            <TouchableOpacity
-              style={styles.addMoreImageBtn}
-              onPress={openCamera}
-            >
-              <Icon name="add-a-photo" size={18} color={COLORS.white} />
-              <Text style={styles.addMoreImageBtnText}>Add Photo</Text>
-            </TouchableOpacity>
+        {/* Separated Image Upload Sections - Side by Side */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            {renderImageSection("Bill Photo *", billImageUris, "bill")}
           </View>
-        )}
-        {imageUris.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.imageThumbScroll}
-          >
-            {imageUris.map((uri, index) => (
-              <View key={`${uri}-${index}`} style={styles.imageThumbWrap}>
-                <Image source={{ uri }} style={styles.imageThumb} />
-                <TouchableOpacity
-                  style={styles.removeThumbBtn}
-                  onPress={() => removeImage(uri)}
-                >
-                  <Icon name="close" size={14} color={COLORS.white} />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
-        )}
+          <View style={{ flex: 1 }}>
+            {renderImageSection("Item Photo", itemImageUris, "item")}
+          </View>
+        </View>
 
         {/* Item Name Bubbles */}
         <View style={styles.inputContainer}>
@@ -384,4 +432,3 @@ const AddItemScreen = ({ navigation, route }) => {
 };
 
 export default AddItemScreen;
-
