@@ -88,6 +88,11 @@ export const backendPayments = {
       .post("/payments/vendor-transactions", payload)
       .then((r) => r.data?.data);
   },
+  updateVendorTransactionComment(id, comment) {
+    return api
+      .patch(`/payments/vendor-transactions/${id}/vendor-comment`, { comment })
+      .then((r) => r.data?.data);
+  },
 };
 
 export const backendLedger = {

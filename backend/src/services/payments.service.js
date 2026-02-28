@@ -26,4 +26,15 @@ export const paymentsService = {
     if (error) throw new ApiError(400, error.message);
     return data;
   },
+
+  async updateVendorTransactionComment(id, comment) {
+    const { data, error } = await supabaseAdmin
+      .from("vendor_transactions")
+      .update({ vendor_comment: comment })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw new ApiError(400, error.message);
+    return data;
+  },
 };

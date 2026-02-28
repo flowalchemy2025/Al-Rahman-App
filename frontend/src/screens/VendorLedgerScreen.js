@@ -15,7 +15,7 @@ import {
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
-import { backendLedger, backendPayments } from "../services/apiClient";
+import { backendLedger, backendPayments, backendPurchases } from "../services/apiClient";
 import { uploadImage } from "../services/imageService";
 import { vendorLedgerStyles as styles } from "../styles";
 import { COLORS } from "../styles/theme";
@@ -40,6 +40,10 @@ const VendorLedgerScreen = ({ navigation, route }) => {
   // Image Viewer State
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerUri, setViewerUri] = useState(null);
+  const [commentModalVisible, setCommentModalVisible] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [activeLedgerItem, setActiveLedgerItem] = useState(null);
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -162,6 +166,48 @@ const VendorLedgerScreen = ({ navigation, route }) => {
     setViewerVisible(true);
   };
 
+  const openCommentModal = (item) => {
+    setActiveLedgerItem(item);
+    setCommentText(item.vendor_comment || "");
+    setCommentModalVisible(true);
+  };
+
+  const closeCommentModal = () => {
+    if (commentSubmitting) return;
+    setCommentModalVisible(false);
+    setActiveLedgerItem(null);
+    setCommentText("");
+  };
+
+  const saveComment = async () => {
+    if (!activeLedgerItem?.id) return;
+
+    setCommentSubmitting(true);
+    const payload = commentText.trim();
+
+    try {
+      if (activeLedgerItem.ledgerType === "Purchase") {
+        await backendPurchases.updateVendorComment(activeLedgerItem.id, payload);
+      } else {
+        await backendPayments.updateVendorTransactionComment(activeLedgerItem.id, payload);
+      }
+
+      setLedger((prev) =>
+        prev.map((entry) =>
+          entry.id === activeLedgerItem.id &&
+          entry.ledgerType === activeLedgerItem.ledgerType
+            ? { ...entry, vendor_comment: payload }
+            : entry,
+        ),
+      );
+      closeCommentModal();
+    } catch (error) {
+      Alert.alert("Error", error?.response?.data?.error || "Could not save comment");
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
   const renderItem = ({ item }) => (
     <View style={styles.ledgerCard}>
       <View style={styles.ledgerIconContainer}>
@@ -200,6 +246,9 @@ const VendorLedgerScreen = ({ navigation, route }) => {
         {item.remarks ? (
           <Text style={styles.ledgerRemarks}>{item.remarks}</Text>
         ) : null}
+        {item.vendor_comment ? (
+          <Text style={styles.ledgerVendorComment}>Comment: {item.vendor_comment}</Text>
+        ) : null}
 
         {/* View Proof Button */}
         {item.image_url || item.bill_image_url || item.item_image_url ? (
@@ -212,18 +261,34 @@ const VendorLedgerScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         ) : null}
       </View>
-      <Text
-        style={[
-          styles.ledgerAmount,
-          {
-            color:
-              item.ledgerType === "Purchase" || item.ledgerType === "Adjustment" ? COLORS.danger : COLORS.success,
-          },
-        ]}
-      >
-        {item.ledgerType === "Purchase" || item.ledgerType === "Adjustment" ? "+" : "-"} {"\u20B9"}
-        {parseFloat(item.value).toFixed(2)}
-      </Text>
+      <View style={styles.ledgerRightColumn}>
+        <TouchableOpacity
+          style={styles.commentBtn}
+          onPress={() => openCommentModal(item)}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Icon
+            name={item.vendor_comment ? "comment" : "add-comment"}
+            size={16}
+            color={COLORS.accentSoft}
+          />
+        </TouchableOpacity>
+        <Text
+          style={[
+            styles.ledgerAmount,
+            {
+              color:
+                item.ledgerType === "Purchase" || item.ledgerType === "Adjustment"
+                  ? COLORS.danger
+                  : COLORS.success,
+            },
+          ]}
+        >
+          {item.ledgerType === "Purchase" || item.ledgerType === "Adjustment" ? "+" : "-"}{" "}
+          {"\u20B9"}
+          {parseFloat(item.value).toFixed(2)}
+        </Text>
+      </View>
     </View>
   );
 
@@ -435,6 +500,40 @@ const VendorLedgerScreen = ({ navigation, route }) => {
               resizeMode="contain"
             />
           )}
+        </View>
+      </Modal>
+      <Modal visible={commentModalVisible} transparent animationType="fade">
+        <View style={styles.commentModalBackdrop}>
+          <View style={styles.commentModalCard}>
+            <Text style={styles.commentModalTitle}>Transaction Comment</Text>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Add comment..."
+              value={commentText}
+              onChangeText={setCommentText}
+              multiline
+              numberOfLines={3}
+              editable={!commentSubmitting}
+            />
+            <View style={styles.commentActions}>
+              <TouchableOpacity
+                style={styles.commentCancelBtn}
+                onPress={closeCommentModal}
+                disabled={commentSubmitting}
+              >
+                <Text style={styles.commentCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.commentSaveBtn}
+                onPress={saveComment}
+                disabled={commentSubmitting}
+              >
+                <Text style={styles.commentSaveText}>
+                  {commentSubmitting ? "Saving..." : "Save"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </View>

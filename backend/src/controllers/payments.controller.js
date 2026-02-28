@@ -16,3 +16,16 @@ export const createVendorPayment = asyncHandler(async (req, res) => {
   });
   res.status(201).json({ success: true, data });
 });
+
+export const updateVendorTransactionComment = asyncHandler(async (req, res) => {
+  const data = await paymentsService.updateVendorTransactionComment(
+    Number(req.params.id),
+    req.body.comment,
+  );
+  await auditService.log(req, "payments.vendor_transaction.comment.update", {
+    targetType: "vendor_transactions",
+    targetId: data.id,
+    metadata: { commentLength: String(req.body.comment || "").length },
+  });
+  res.json({ success: true, data });
+});

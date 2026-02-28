@@ -13,11 +13,12 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
-import { backendItems, backendPurchases, backendUsers } from "../services/apiClient";
 import {
-  uploadImage,
-  deleteImage,
-} from "../services/imageService";
+  backendItems,
+  backendPurchases,
+  backendUsers,
+} from "../services/apiClient";
+import { uploadImage, deleteImage } from "../services/imageService";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { editEntryStyles as styles } from "../styles";
 import { COLORS } from "../styles/theme";
@@ -38,8 +39,12 @@ const EditEntryScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
 
   // Separated Image States
-  const [billImageUris, setBillImageUris] = useState(parseCsv(entry.bill_image_url));
-  const [itemImageUris, setItemImageUris] = useState(parseCsv(entry.item_image_url));
+  const [billImageUris, setBillImageUris] = useState(
+    parseCsv(entry.bill_image_url),
+  );
+  const [itemImageUris, setItemImageUris] = useState(
+    parseCsv(entry.item_image_url),
+  );
 
   const [billImageChanged, setBillImageChanged] = useState(false);
   const [itemImageChanged, setItemImageChanged] = useState(false);
@@ -78,10 +83,15 @@ const EditEntryScreen = ({ navigation, route }) => {
         role: "Vendor",
         branchName: entry.branch_name,
       });
-      setVendors([{ id: "BYPASS", full_name: "Local Shop" }, ...(vendorData || [])]);
+      setVendors([
+        { id: "BYPASS", full_name: "Local Shop" },
+        ...(vendorData || []),
+      ]);
 
       // Fetch Items List
-      const itemData = await backendItems.list({ branchName: entry.branch_name });
+      const itemData = await backendItems.list({
+        branchName: entry.branch_name,
+      });
       const itemsList = (itemData || []).map((i) => i.item_name);
       setBranchItems(itemsList);
 
@@ -92,7 +102,10 @@ const EditEntryScreen = ({ navigation, route }) => {
         setCustomItemName(entry.item_name);
       }
     } catch (error) {
-      Alert.alert("Error", error?.response?.data?.error || "Failed to load form data");
+      Alert.alert(
+        "Error",
+        error?.response?.data?.error || "Failed to load form data",
+      );
     }
   };
 
@@ -112,7 +125,7 @@ const EditEntryScreen = ({ navigation, route }) => {
       const manipResult = await ImageManipulator.manipulateAsync(
         originalUri,
         [{ resize: { width: 1024 } }], // Resize width to max 1024px while retaining aspect ratio
-        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+        { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG },
       );
 
       const newUri = manipResult.uri;
@@ -141,8 +154,14 @@ const EditEntryScreen = ({ navigation, route }) => {
     const finalItemName =
       selectedItemName === "Others" ? customItemName : selectedItemName;
     const finalUnit = unit === "Others" ? customUnit : unit;
-    if (!billImageUris.length && !itemImageUris.length) return Alert.alert("Error", "Please add at least one image");
-    if (!finalItemName.trim() || !quantity.trim() || !price.trim() || !finalUnit.trim())
+    if (!billImageUris.length && !itemImageUris.length)
+      return Alert.alert("Error", "Please add at least one image");
+    if (
+      !finalItemName.trim() ||
+      !quantity.trim() ||
+      !price.trim() ||
+      !finalUnit.trim()
+    )
       return Alert.alert("Error", "Please check your inputs");
 
     setLoading(true);
@@ -155,24 +174,28 @@ const EditEntryScreen = ({ navigation, route }) => {
 
       // Handle Bill Images Update
       if (billImageChanged) {
-        if (entry.bill_image_filename) await deleteImagesByCsv(entry.bill_image_filename);
+        if (entry.bill_image_filename)
+          await deleteImagesByCsv(entry.bill_image_filename);
         const billUploads = await Promise.all(
           billImageUris.map((uri) => uploadImage(uri)),
         );
         const failedUpload = billUploads.find((img) => !img.success);
-        if (failedUpload) throw new Error(failedUpload.error || "Bill image upload failed");
+        if (failedUpload)
+          throw new Error(failedUpload.error || "Bill image upload failed");
         updatedBillUrls = billUploads.map((img) => img.url);
         updatedBillFilenames = billUploads.map((img) => img.filename);
       }
 
       // Handle Item Images Update
       if (itemImageChanged) {
-        if (entry.item_image_filename) await deleteImagesByCsv(entry.item_image_filename);
+        if (entry.item_image_filename)
+          await deleteImagesByCsv(entry.item_image_filename);
         const itemUploads = await Promise.all(
           itemImageUris.map((uri) => uploadImage(uri)),
         );
         const failedUpload = itemUploads.find((img) => !img.success);
-        if (failedUpload) throw new Error(failedUpload.error || "Item image upload failed");
+        if (failedUpload)
+          throw new Error(failedUpload.error || "Item image upload failed");
         updatedItemUrls = itemUploads.map((img) => img.url);
         updatedItemFilenames = itemUploads.map((img) => img.filename);
       }
@@ -213,14 +236,19 @@ const EditEntryScreen = ({ navigation, route }) => {
         onPress: async () => {
           setLoading(true);
           try {
-            if (entry.bill_image_filename) await deleteImagesByCsv(entry.bill_image_filename);
-            if (entry.item_image_filename) await deleteImagesByCsv(entry.item_image_filename);
+            if (entry.bill_image_filename)
+              await deleteImagesByCsv(entry.bill_image_filename);
+            if (entry.item_image_filename)
+              await deleteImagesByCsv(entry.item_image_filename);
             await backendPurchases.remove(entry.id);
             setLoading(false);
             navigation.goBack();
           } catch (error) {
             setLoading(false);
-            Alert.alert("Error", error?.response?.data?.error || "Delete failed");
+            Alert.alert(
+              "Error",
+              error?.response?.data?.error || "Delete failed",
+            );
           }
         },
       },
@@ -233,7 +261,10 @@ const EditEntryScreen = ({ navigation, route }) => {
   const renderImageSection = (title, images, type) => (
     <View style={{ marginBottom: 20 }}>
       <Text style={styles.label}>{title}</Text>
-      <TouchableOpacity style={styles.imageContainer} onPress={() => openCamera(type)}>
+      <TouchableOpacity
+        style={styles.imageContainer}
+        onPress={() => openCamera(type)}
+      >
         {images.length ? (
           <>
             <Image
@@ -257,7 +288,10 @@ const EditEntryScreen = ({ navigation, route }) => {
           <Text style={styles.imageCountText}>
             {images.length} photo{images.length > 1 ? "s" : ""} added
           </Text>
-          <TouchableOpacity style={styles.addMoreImageBtn} onPress={() => openCamera(type)}>
+          <TouchableOpacity
+            style={styles.addMoreImageBtn}
+            onPress={() => openCamera(type)}
+          >
             <Icon name="add-a-photo" size={18} color={COLORS.white} />
             <Text style={styles.addMoreImageBtnText}>Add Photo</Text>
           </TouchableOpacity>
@@ -296,7 +330,7 @@ const EditEntryScreen = ({ navigation, route }) => {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Purchase</Text>
         <TouchableOpacity onPress={handleDelete}>
-          <Icon name="delete" size={24} color={COLORS.danger} />
+          <Icon name="delete" size={24} color={COLORS.white} />
         </TouchableOpacity>
       </View>
 
@@ -305,7 +339,13 @@ const EditEntryScreen = ({ navigation, route }) => {
         keyboardShouldPersistTaps="handled"
       >
         {/* Separated Image Upload Sections - Side by Side */}
-        <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 10 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
+        >
           <View style={{ flex: 1 }}>
             {renderImageSection("Bill Photo *", billImageUris, "bill")}
           </View>
@@ -373,7 +413,9 @@ const EditEntryScreen = ({ navigation, route }) => {
           >
             <Text style={styles.dropdownText}>{unit}</Text>
             <Icon
-              name={showUnitDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+              name={
+                showUnitDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"
+              }
               size={22}
               color={COLORS.textSecondary}
             />
@@ -463,7 +505,8 @@ const EditEntryScreen = ({ navigation, route }) => {
                     <Text
                       style={[
                         styles.dropdownItemText,
-                        selectedVendor === v.id && styles.dropdownItemTextActive,
+                        selectedVendor === v.id &&
+                          styles.dropdownItemTextActive,
                       ]}
                     >
                       {v.full_name}

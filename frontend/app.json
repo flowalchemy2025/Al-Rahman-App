@@ -9,13 +9,14 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#C62828"
+      "backgroundColor": "#4CAF50"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
+      "icon": "./assets/icon.png",
       "bundleIdentifier": "com.restaurant.purchaseapp",
       "infoPlist": {
         "NSCameraUsageDescription": "This app requires camera access to take photos of purchased items.",
@@ -25,9 +26,10 @@
       }
     },
     "android": {
+      "icon": "./assets/icon.png",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#C62828"
+        "backgroundColor": "#4CAF50"
       },
       "package": "com.restaurant.purchaseapp",
       "permissions": [
@@ -54,6 +56,20 @@
       ],
       "expo-font",
       "expo-asset"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8e8417d5-b461-4d48-839f-8214ab0b267b"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/8e8417d5-b461-4d48-839f-8214ab0b267b",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }
