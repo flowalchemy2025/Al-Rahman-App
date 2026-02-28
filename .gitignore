@@ -41,5 +41,8 @@ local.properties
 # testing
 /coverage
 
-eas.json
-app.json
+# Ignore root Expo/EAS config files, but keep frontend app config tracked
+/eas.json
+/app.json
+!/frontend/eas.json
+!/frontend/app.json
