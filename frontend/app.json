@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Restaurant Purchase Manager",
+    "name": "alR HUB",
     "slug": "restaurant-purchase-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -42,8 +42,8 @@
       "versionCode": 2
     },
     "web": {
-      "name": "Restaurant Purchase Manager",
-      "shortName": "RPM",
+      "name": "alR HUB",
+      "shortName": "IH",
       "favicon": "./assets/icon.png"
     },
     "plugins": [

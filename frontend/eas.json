@@ -17,9 +17,10 @@
       "channel": "preview"
     },
     "production": {
+      "distribution": "internal",
       "channel": "production",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "apk"
       }
     }
   }

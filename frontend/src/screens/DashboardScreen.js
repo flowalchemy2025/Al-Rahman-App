@@ -75,7 +75,7 @@ const DashboardScreen = ({ navigation, route }) => {
             <Text style={styles.headerSubtitle}>
               {user.full_name}{" "}
               {user.role === "Branch" && user.branches
-                ? `â€¢ ${user.branches[0]}`
+                ? `: ${user.branches[0]}`
                 : ""}
             </Text>
           </View>
