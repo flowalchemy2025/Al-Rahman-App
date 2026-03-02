@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Modal,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -28,6 +29,8 @@ const AddItemScreen = ({ navigation, route }) => {
   // Separated Image States
   const [billImageUris, setBillImageUris] = useState([]);
   const [itemImageUris, setItemImageUris] = useState([]);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerUri, setViewerUri] = useState(null);
 
   // Form State
   const [branchItems, setBranchItems] = useState([]);
@@ -103,6 +106,12 @@ const AddItemScreen = ({ navigation, route }) => {
     }
   };
 
+  const openViewer = (uri) => {
+    if (!uri) return;
+    setViewerUri(uri);
+    setViewerVisible(true);
+  };
+
   const handleSubmit = async () => {
     const finalItemName =
       selectedItemName === "Others" ? customItemName : selectedItemName;
@@ -166,7 +175,12 @@ const AddItemScreen = ({ navigation, route }) => {
   const renderImageSection = (title, images, type) => (
     <View style={{ marginBottom: 20 }}>
       <Text style={styles.label}>{title}</Text>
-      <TouchableOpacity style={styles.imageContainer} onPress={() => openCamera(type)}>
+      <TouchableOpacity
+        style={styles.imageContainer}
+        onPress={() =>
+          images.length ? openViewer(images[images.length - 1]) : openCamera(type)
+        }
+      >
         {images.length ? (
           <Image
             source={{ uri: images[images.length - 1] }}
@@ -201,7 +215,13 @@ const AddItemScreen = ({ navigation, route }) => {
         >
           {images.map((uri, index) => (
             <View key={`${uri}-${index}`} style={styles.imageThumbWrap}>
-              <Image source={{ uri }} style={styles.imageThumb} />
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={{ flex: 1 }}
+                onPress={() => openViewer(uri)}
+              >
+                <Image source={{ uri }} style={styles.imageThumb} />
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.removeThumbBtn}
                 onPress={() => removeImage(uri, type)}
@@ -427,6 +447,31 @@ const AddItemScreen = ({ navigation, route }) => {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal visible={viewerVisible} transparent animationType="fade">
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: COLORS.overlayStrong,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <TouchableOpacity
+            style={{ position: "absolute", top: 50, right: 20, zIndex: 10 }}
+            onPress={() => setViewerVisible(false)}
+          >
+            <Icon name="close" size={32} color={COLORS.white} />
+          </TouchableOpacity>
+          {viewerUri && (
+            <Image
+              source={{ uri: viewerUri }}
+              style={{ width: "100%", height: "80%" }}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };

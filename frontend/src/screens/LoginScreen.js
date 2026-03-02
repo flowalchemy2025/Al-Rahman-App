@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { backendAuth } from "../services/apiClient";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loginStyles as styles } from "../styles";
 import { COLORS } from "../styles/theme";
 
@@ -22,6 +21,8 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
+    if (loading) return;
+
     if (!username.trim() || !password) {
       return Alert.alert("Error", "Please enter username/mobile and password");
     }
@@ -33,7 +34,6 @@ const LoginScreen = ({ navigation }) => {
 
       if (!user) throw new Error("Login response is missing user profile");
 
-      await AsyncStorage.setItem("user", JSON.stringify(user));
       navigation.replace("Dashboard", { user });
     } catch (error) {
       Alert.alert(

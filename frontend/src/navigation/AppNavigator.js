@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ActivityIndicator, View } from "react-native";
 import { backendAuth } from "../services/apiClient";
 import { appNavigatorStyles } from "../styles";
@@ -27,26 +26,15 @@ const AppNavigator = () => {
 
   const checkUser = async () => {
     try {
-      // 1. Check if we have local user data
-      const userJson = await AsyncStorage.getItem("user");
-
-      if (userJson) {
-        // 2. Verify backend token validity
-        try {
-          await backendAuth.me();
-          setInitialRoute("Dashboard");
-        } catch (error) {
-          console.log("Session invalid, clearing storage...");
-          await AsyncStorage.removeItem("user");
-          setInitialRoute("Login");
-        }
-      } else {
+      const user = await backendAuth.restoreSession();
+      if (!user) {
         setInitialRoute("Login");
+        return;
       }
+      setInitialRoute("Dashboard");
     } catch (error) {
       console.error("Error checking user:", error);
-      // Fallback: clear data and go to login to prevent crash loop
-      await AsyncStorage.removeItem("user");
+      await backendAuth.logout();
       setInitialRoute("Login");
     } finally {
       setLoading(false);

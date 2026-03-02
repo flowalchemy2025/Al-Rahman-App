@@ -324,7 +324,6 @@ const AnalyticsTab = ({ user }) => {
         "Price (Rs)",
         "Branch",
         "Vendor",
-        "Status",
         "Remarks",
       ];
 
@@ -336,7 +335,6 @@ const AnalyticsTab = ({ user }) => {
         e.price,
         e.branch_name || "",
         e.vendor?.full_name || "Local Shop",
-        e.status || "Verified",
         e.remarks || "",
       ]);
 

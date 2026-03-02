@@ -37,6 +37,31 @@ export const authService = {
     };
   },
 
+  async refresh(refreshToken) {
+    const { data: authData, error: authError } = await supabasePublic.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
+
+    if (authError || !authData?.session || !authData?.user) {
+      throw new ApiError(401, authError?.message || "Invalid refresh token");
+    }
+
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from("users")
+      .select("*")
+      .eq("user_id", authData.user.id)
+      .single();
+
+    if (userError || !userData) {
+      throw new ApiError(404, "User profile not found");
+    }
+
+    return {
+      user: userData,
+      session: authData.session,
+    };
+  },
+
   async me(authUserId) {
     const { data, error } = await supabaseAdmin
       .from("users")

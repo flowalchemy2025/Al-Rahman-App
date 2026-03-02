@@ -37,6 +37,18 @@ export const validateLogin = (req, res, next) => {
   }
 };
 
+export const validateRefresh = (req, res, next) => {
+  try {
+    const { refreshToken } = req.body || {};
+    if (!nonEmptyString(refreshToken)) {
+      failValidation(["refreshToken is required"]);
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const validateUserList = (req, res, next) => {
   try {
     const { role, branchName } = req.query || {};
