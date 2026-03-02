@@ -31,6 +31,7 @@ const ItemsCalendarTab = ({ user, navigation }) => {
   const [entries, setEntries] = useState([]);
   const [markedDates, setMarkedDates] = useState({});
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [commentModal, setCommentModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
@@ -95,6 +96,19 @@ const ItemsCalendarTab = ({ user, navigation }) => {
     (e) => getLocalDateString(e.created_at) === selectedDate,
   );
 
+  const filteredDayEntries = dayEntries.filter((e) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+
+    const itemName = String(e.item_name || "").toLowerCase();
+    const vendorName = String(e.vendor?.full_name || "Local Shop").toLowerCase();
+    const branchName = String(e.branch_name || "").toLowerCase();
+
+    if (itemName.includes(query) || vendorName.includes(query)) return true;
+    if (user.role === "Super Admin" && branchName.includes(query)) return true;
+    return false;
+  });
+
   const isToday = selectedDate === today;
   const canModify =
     user.role === "Super Admin" || (user.role === "Branch" && isToday);
@@ -102,7 +116,7 @@ const ItemsCalendarTab = ({ user, navigation }) => {
   return (
     <View style={styles.container}>
       <FlatList
-        data={dayEntries}
+        data={filteredDayEntries}
         keyExtractor={(item) => item.id.toString()}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={loadData} />
@@ -181,6 +195,25 @@ const ItemsCalendarTab = ({ user, navigation }) => {
                   Refresh
                 </Text>
               </TouchableOpacity>
+            </View>
+            <View style={styles.searchRow}>
+              <Icon name="search" size={18} color={COLORS.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder={
+                  user.role === "Super Admin"
+                    ? "Search item, vendor, or branch..."
+                    : "Search item or vendor..."
+                }
+                placeholderTextColor={COLORS.textMuted}
+              />
+              {!!searchQuery && (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <Icon name="close" size={18} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              )}
             </View>
           </>
         }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -139,6 +139,7 @@ const AnalyticsTab = ({ user }) => {
   const [entries, setEntries] = useState([]);
   const [branchItems, setBranchItems] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
+  const [isAllItemsSelected, setIsAllItemsSelected] = useState(false);
 
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -154,6 +155,8 @@ const AnalyticsTab = ({ user }) => {
   const [calendarMode, setCalendarMode] = useState(null); // 'start' | 'end' | null
   const [chartType, setChartType] = useState("Line");
   const [selectedPoint, setSelectedPoint] = useState(null);
+  const [selectedBranch, setSelectedBranch] = useState("All Branches");
+  const [showBranchDropdown, setShowBranchDropdown] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -188,14 +191,8 @@ const AnalyticsTab = ({ user }) => {
         branchData = branchData.filter((e) => e.branch_name === user.branches[0]);
       }
       setEntries(branchData);
-
-      const uniqueItems = [...new Set(branchData.map((e) => e.item_name))];
-      setBranchItems(uniqueItems);
-      setSelectedItems((prev) => {
-        const stillValid = prev.filter((item) => uniqueItems.includes(item));
-        if (stillValid.length > 0) return stillValid;
-        return uniqueItems.length > 0 ? [uniqueItems[0]] : [];
-      });
+      setIsAllItemsSelected(false);
+      setSelectedItems([]);
     } catch (error) {
       Alert.alert("Error", error?.response?.data?.error || "Could not fetch analytics data.");
     } finally {
@@ -203,14 +200,62 @@ const AnalyticsTab = ({ user }) => {
     }
   };
 
+  const branchOptions = useMemo(() => {
+    if (user.role !== "Super Admin") return [];
+    return [
+      "All Branches",
+      ...[...new Set(entries.map((e) => e.branch_name).filter(Boolean))],
+    ];
+  }, [entries, user.role]);
+
+  const scopedEntries = useMemo(() => {
+    if (user.role !== "Super Admin" || selectedBranch === "All Branches") {
+      return entries;
+    }
+    return entries.filter((e) => e.branch_name === selectedBranch);
+  }, [entries, selectedBranch, user.role]);
+
+  const uniqueItems = useMemo(
+    () => [...new Set(scopedEntries.map((e) => e.item_name).filter(Boolean))],
+    [scopedEntries],
+  );
+
+  useEffect(() => {
+    setBranchItems(uniqueItems);
+    setSelectedItems((prev) => {
+      if (uniqueItems.length === 0) return [];
+      if (isAllItemsSelected) return uniqueItems;
+      const stillValid = prev.filter((item) => uniqueItems.includes(item));
+      if (stillValid.length > 0) return stillValid;
+      return [uniqueItems[0]];
+    });
+  }, [isAllItemsSelected, uniqueItems]);
+
   const toggleItem = (itemName) => {
     setSelectedItems((prev) => {
-      if (prev.includes(itemName)) {
-        const next = prev.filter((i) => i !== itemName);
-        return next.length ? next : prev;
+      const base = isAllItemsSelected ? branchItems : prev;
+      if (base.includes(itemName)) {
+        const next = base.filter((i) => i !== itemName);
+        if (!next.length) return base;
+        setIsAllItemsSelected(false);
+        return next;
       }
-      return [...prev, itemName];
+      const next = [...base, itemName];
+      const allSelected = next.length === branchItems.length;
+      setIsAllItemsSelected(allSelected);
+      return next;
     });
+  };
+
+  const toggleAllItems = () => {
+    if (!branchItems.length) return;
+    if (isAllItemsSelected) {
+      setIsAllItemsSelected(false);
+      setSelectedItems([branchItems[0]]);
+      return;
+    }
+    setSelectedItems(branchItems);
+    setIsAllItemsSelected(true);
   };
 
   const startDateObj = parseYmdToDate(startDate);
@@ -220,11 +265,11 @@ const AnalyticsTab = ({ user }) => {
     const [rangeStart, rangeEnd] = getOrderedRange(startDateObj, endDateObj);
     const start = setStartOfDay(rangeStart);
     const end = setEndOfDay(rangeEnd);
-    return entries.filter((e) => {
+    return scopedEntries.filter((e) => {
       const dt = new Date(e.created_at);
       return dt >= start && dt <= end;
     });
-  }, [entries, startDate, endDate]);
+  }, [scopedEntries, startDate, endDate]);
 
   const selectedEntries = useMemo(
     () => rangedEntries.filter((e) => selectedItems.includes(e.item_name)),
@@ -430,7 +475,7 @@ const AnalyticsTab = ({ user }) => {
         </TouchableOpacity>
       </View>
 
-      {branchItems.length === 0 ? (
+      {entries.length === 0 ? (
         <Text style={styles.emptyText}>No data available for analytics yet.</Text>
       ) : (
         <ScrollView
@@ -439,6 +484,58 @@ const AnalyticsTab = ({ user }) => {
         >
           <View style={styles.selectorContainer}>
             <Text style={styles.sectionLabel}>Timeframe</Text>
+            {user.role === "Super Admin" && (
+              <View style={styles.analyticsBranchWrap}>
+                <Text style={styles.analyticsBranchLabel}>Branch</Text>
+                <TouchableOpacity
+                  style={styles.analyticsBranchTrigger}
+                  onPress={() => setShowBranchDropdown((prev) => !prev)}
+                >
+                  <Text
+                    style={[
+                      styles.analyticsBranchText,
+                      selectedBranch === "All Branches" &&
+                        styles.analyticsBranchTextPlaceholder,
+                    ]}
+                  >
+                    {selectedBranch}
+                  </Text>
+                  <Icon
+                    name={showBranchDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                    size={22}
+                    color={COLORS.textSecondary}
+                  />
+                </TouchableOpacity>
+                {showBranchDropdown && (
+                  <View style={styles.analyticsBranchMenu}>
+                    <ScrollView nestedScrollEnabled style={styles.analyticsBranchScroll}>
+                      {branchOptions.map((branchName) => (
+                        <TouchableOpacity
+                          key={branchName}
+                          style={styles.analyticsBranchItem}
+                          onPress={() => {
+                            setSelectedBranch(branchName);
+                            setShowBranchDropdown(false);
+                            setIsAllItemsSelected(false);
+                            setSelectedItems([]);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.analyticsBranchItemText,
+                              selectedBranch === branchName &&
+                                styles.analyticsBranchItemTextActive,
+                            ]}
+                          >
+                            {branchName}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+            )}
             <View style={styles.analyticsPresetRow}>
               {["1 Week", "1 Month", "6 Months"].map((preset) => (
                 <TouchableOpacity
@@ -486,26 +583,41 @@ const AnalyticsTab = ({ user }) => {
 
           <View style={styles.selectorContainer}>
             <Text style={styles.sectionLabel}>Choose Item(s)</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.chipScroll}
-            >
-              {branchItems.map((item) => {
-                const active = selectedItems.includes(item);
-                return (
-                  <TouchableOpacity
-                    key={item}
-                    style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => toggleItem(item)}
+            {branchItems.length === 0 ? (
+              <Text style={styles.chartHintText}>No items for selected branch.</Text>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipScroll}
+              >
+                <TouchableOpacity
+                  style={[styles.chip, isAllItemsSelected && styles.chipActive]}
+                  onPress={toggleAllItems}
+                >
+                  <Text
+                    style={[styles.chipText, isAllItemsSelected && styles.chipTextActive]}
                   >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                      {item}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                    All
+                  </Text>
+                </TouchableOpacity>
+                {branchItems.map((item) => {
+                  const active =
+                    isAllItemsSelected || selectedItems.includes(item);
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => toggleItem(item)}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                        {item}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
           </View>
 
           <View style={styles.chartCard}>
@@ -513,6 +625,12 @@ const AnalyticsTab = ({ user }) => {
             <Text style={styles.chartSubtitle}>
               {startDate} to {endDate}
             </Text>
+            {selectedItems.length === 0 ? (
+              <Text style={styles.chartHintText}>
+                Select at least one item to view analytics.
+              </Text>
+            ) : (
+              <>
             <View style={styles.chartTypeRow}>
               {["Line", "Bar", "Pie"].map((type) => (
                 <TouchableOpacity
@@ -622,6 +740,8 @@ const AnalyticsTab = ({ user }) => {
                 </View>
               ))}
             </View>
+              </>
+            )}
           </View>
 
           <View style={styles.statsRow}>
