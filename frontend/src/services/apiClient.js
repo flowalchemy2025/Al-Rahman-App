@@ -1,41 +1,100 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
-const API_BASE_URL = "https:/kareemsnagpur.com/alrahman/api/v1";
+const API_BASE_URL = "https://kareemsnagpur.com/alrahman/api/v1";
 const ACCESS_TOKEN_KEY = "access_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
 const USER_KEY = "user";
+const AUTH_BUNDLE_KEY = "auth_bundle";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
 });
 
-const getStoredTokens = async () => {
-  const [accessToken, refreshToken] = await Promise.all([
+const authApi = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 15000,
+});
+
+let authBundleCache = null;
+let refreshInFlightPromise = null;
+
+const parseJson = (value) => {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return null;
+  }
+};
+
+const setAuthBundleCache = (bundle) => {
+  authBundleCache = bundle || null;
+};
+
+const normalizeSession = (session) => {
+  if (!session?.access_token && !session?.refresh_token) return null;
+  return {
+    access_token: session?.access_token || null,
+    refresh_token: session?.refresh_token || null,
+  };
+};
+
+const getStoredAuthBundle = async () => {
+  if (authBundleCache) return authBundleCache;
+
+  const bundleJson = await AsyncStorage.getItem(AUTH_BUNDLE_KEY);
+  const parsedBundle = parseJson(bundleJson);
+  if (parsedBundle?.user || parsedBundle?.session) {
+    const normalizedBundle = {
+      user: parsedBundle.user || null,
+      session: normalizeSession(parsedBundle.session),
+    };
+    setAuthBundleCache(normalizedBundle);
+    return normalizedBundle;
+  }
+
+  // Migrate older installs that stored user and tokens separately.
+  const [userJson, accessToken, refreshToken] = await Promise.all([
+    AsyncStorage.getItem(USER_KEY),
     AsyncStorage.getItem(ACCESS_TOKEN_KEY),
     AsyncStorage.getItem(REFRESH_TOKEN_KEY),
   ]);
-  return { accessToken, refreshToken };
+  const user = parseJson(userJson);
+  const session = normalizeSession({
+    access_token: accessToken || null,
+    refresh_token: refreshToken || null,
+  });
+
+  if (!user && !session) return null;
+
+  const migratedBundle = { user: user || null, session };
+  await AsyncStorage.setItem(AUTH_BUNDLE_KEY, JSON.stringify(migratedBundle));
+  setAuthBundleCache(migratedBundle);
+  return migratedBundle;
 };
 
-const persistSession = async (session) => {
-  const writes = [];
-  if (session?.access_token) {
-    writes.push(AsyncStorage.setItem(ACCESS_TOKEN_KEY, session.access_token));
-  }
-  if (session?.refresh_token) {
-    writes.push(AsyncStorage.setItem(REFRESH_TOKEN_KEY, session.refresh_token));
-  }
-  await Promise.all(writes);
+const persistAuthBundle = async ({ session, user }) => {
+  const currentBundle = (await getStoredAuthBundle()) || { user: null, session: null };
+  const nextBundle = {
+    user: user ?? currentBundle.user ?? null,
+    session: normalizeSession(session ?? currentBundle.session),
+  };
+
+  await AsyncStorage.setItem(AUTH_BUNDLE_KEY, JSON.stringify(nextBundle));
+  setAuthBundleCache(nextBundle);
+  return nextBundle;
 };
 
 const clearSession = async () => {
-  await Promise.all([
-    AsyncStorage.removeItem(ACCESS_TOKEN_KEY),
-    AsyncStorage.removeItem(REFRESH_TOKEN_KEY),
-    AsyncStorage.removeItem(USER_KEY),
+  await AsyncStorage.multiRemove([
+    AUTH_BUNDLE_KEY,
+    USER_KEY,
+    ACCESS_TOKEN_KEY,
+    REFRESH_TOKEN_KEY,
   ]);
+  setAuthBundleCache(null);
 };
 
 const isUnauthorizedError = (error) => {
@@ -43,31 +102,22 @@ const isUnauthorizedError = (error) => {
   return status === 401 || status === 403;
 };
 
-api.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-let refreshInFlightPromise = null;
-
 const refreshAccessToken = async () => {
   if (!refreshInFlightPromise) {
     refreshInFlightPromise = (async () => {
-      const { refreshToken } = await getStoredTokens();
+      const bundle = await getStoredAuthBundle();
+      const refreshToken = bundle?.session?.refresh_token;
       if (!refreshToken) return null;
 
-      const response = await api.post("/auth/refresh", { refreshToken });
+      const response = await authApi.post("/auth/refresh", { refreshToken });
       const payload = response.data?.data;
-      if (payload?.session) {
-        await persistSession(payload.session);
-      }
-      if (payload?.user) {
-        await AsyncStorage.setItem(USER_KEY, JSON.stringify(payload.user));
-      }
-      return payload?.session || null;
+      if (!payload?.session) return null;
+
+      await persistAuthBundle({
+        session: payload.session,
+        user: payload?.user || bundle?.user || null,
+      });
+      return payload.session;
     })();
   }
 
@@ -78,6 +128,29 @@ const refreshAccessToken = async () => {
   }
 };
 
+const ensureAccessToken = async () => {
+  const bundle = await getStoredAuthBundle();
+  const accessToken = bundle?.session?.access_token;
+  if (accessToken) return accessToken;
+
+  const session = await refreshAccessToken();
+  return session?.access_token || null;
+};
+
+api.interceptors.request.use(async (config) => {
+  const requestUrl = String(config?.url || "");
+  const isAuthEndpoint =
+    requestUrl.includes("/auth/login") || requestUrl.includes("/auth/refresh");
+  if (isAuthEndpoint) return config;
+
+  const token = await ensureAccessToken();
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -85,8 +158,7 @@ api.interceptors.response.use(
     const originalRequest = error?.config || {};
     const requestUrl = String(originalRequest?.url || "");
     const isAuthEndpoint =
-      requestUrl.includes("/auth/login") ||
-      requestUrl.includes("/auth/refresh");
+      requestUrl.includes("/auth/login") || requestUrl.includes("/auth/refresh");
 
     if (status !== 401 || originalRequest._retry || isAuthEndpoint) {
       throw error;
@@ -104,7 +176,9 @@ api.interceptors.response.use(
       originalRequest.headers.Authorization = `Bearer ${session.access_token}`;
       return api(originalRequest);
     } catch (refreshError) {
-      await clearSession();
+      if (isUnauthorizedError(refreshError)) {
+        await clearSession();
+      }
       throw refreshError;
     }
   },
@@ -117,22 +191,22 @@ export const backendAuth = {
       password,
     });
     const payload = response.data?.data;
-    if (payload?.session) {
-      await persistSession(payload.session);
-    }
-    if (payload?.user) {
-      await AsyncStorage.setItem(USER_KEY, JSON.stringify(payload.user));
+    if (payload?.session || payload?.user) {
+      await persistAuthBundle({
+        session: payload?.session || null,
+        user: payload?.user || null,
+      });
     }
     return payload;
   },
   async refresh(refreshToken) {
-    const response = await api.post("/auth/refresh", { refreshToken });
+    const response = await authApi.post("/auth/refresh", { refreshToken });
     const payload = response.data?.data;
-    if (payload?.session) {
-      await persistSession(payload.session);
-    }
-    if (payload?.user) {
-      await AsyncStorage.setItem(USER_KEY, JSON.stringify(payload.user));
+    if (payload?.session || payload?.user) {
+      await persistAuthBundle({
+        session: payload?.session || null,
+        user: payload?.user || null,
+      });
     }
     return payload;
   },
@@ -143,20 +217,34 @@ export const backendAuth = {
   async logout() {
     await clearSession();
   },
+  async getCachedUser() {
+    const bundle = await getStoredAuthBundle();
+    return bundle?.user || null;
+  },
+  async updateCachedUser(user) {
+    const bundle = await getStoredAuthBundle();
+    await persistAuthBundle({
+      session: bundle?.session || null,
+      user: user || null,
+    });
+  },
   async restoreSession() {
-    const userJson = await AsyncStorage.getItem(USER_KEY);
-    if (!userJson) return null;
-
-    let user;
-    try {
-      user = JSON.parse(userJson);
-    } catch (error) {
-      await clearSession();
-      return null;
-    }
+    const bundle = await getStoredAuthBundle();
+    if (!bundle?.user) return null;
 
     try {
-      await this.me();
+      const token = await ensureAccessToken();
+      if (!token) {
+        // A cached user without any recoverable session must be re-authenticated once.
+        await clearSession();
+        return null;
+      }
+
+      const user = await this.me();
+      await persistAuthBundle({
+        session: (await getStoredAuthBundle())?.session || bundle.session || null,
+        user,
+      });
       return user;
     } catch (error) {
       if (isUnauthorizedError(error)) {
@@ -164,10 +252,13 @@ export const backendAuth = {
         return null;
       }
 
-      return user;
+      // Keep cached session on transient failures so users stay signed in.
+      return bundle.user;
     }
   },
 };
+
+void getStoredAuthBundle();
 
 export const backendUsers = {
   list(params = {}) {

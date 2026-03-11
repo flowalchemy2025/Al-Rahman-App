@@ -110,9 +110,13 @@ const LoginScreen = ({ navigation }) => {
           )}
         </TouchableOpacity>
       </View>
+      <View style={{ marginTop: 10, marginBottom: 20, alignItems: "center" }}>
+        <Text style={{ color: COLORS.textMuted || "#888", fontSize: 12 }}>
+          Version 1.0.0
+        </Text>
+      </View>
     </KeyboardAvoidingView>
   );
 };
 
 export default LoginScreen;
-

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { backendAuth } from "../services/apiClient";
 
@@ -22,8 +21,8 @@ const DashboardScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     if (!user) {
-      AsyncStorage.getItem("user").then((u) => {
-        if (u) setUser(JSON.parse(u));
+      backendAuth.getCachedUser().then((cachedUser) => {
+        if (cachedUser) setUser(cachedUser);
         else navigation.replace("Login");
       });
     }
@@ -31,7 +30,6 @@ const DashboardScreen = ({ navigation, route }) => {
 
   const handleLogout = async () => {
     await backendAuth.logout();
-    await AsyncStorage.removeItem("user");
     navigation.replace("Login");
   };
 
@@ -57,7 +55,7 @@ const DashboardScreen = ({ navigation, route }) => {
         onClose={() => setShowProfileModal(false)}
         onComplete={async (updatedUser) => {
           setUser(updatedUser);
-          await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+          await backendAuth.updateCachedUser(updatedUser);
           setShowProfileModal(false);
         }}
       />
