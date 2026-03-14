@@ -5,6 +5,7 @@ import {
   ScrollView,
   Dimensions,
   TouchableOpacity,
+  TextInput,
   ActivityIndicator,
   RefreshControl,
   Modal,
@@ -179,6 +180,7 @@ const AnalyticsTab = ({ user }) => {
   const [calendarMode, setCalendarMode] = useState(null); // 'start' | 'end' | null
   const [chartType, setChartType] = useState("Line");
   const [selectedPoint, setSelectedPoint] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedBranch, setSelectedBranch] = useState("All Branches");
   const [selectedVendor, setSelectedVendor] = useState("All Vendors");
   const [showBranchDropdown, setShowBranchDropdown] = useState(false);
@@ -245,28 +247,42 @@ const AnalyticsTab = ({ user }) => {
     return entries.filter((e) => e.branch_name === selectedBranch);
   }, [entries, selectedBranch, user.role]);
 
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+
+  const searchedEntries = useMemo(() => {
+    if (!normalizedSearchQuery) return scopedEntries;
+    return scopedEntries.filter((e) => {
+      const itemName = String(e.item_name || "").toLowerCase();
+      const vendorName = String(e.vendor?.full_name || "Local Shop").toLowerCase();
+      return (
+        itemName.includes(normalizedSearchQuery) ||
+        vendorName.includes(normalizedSearchQuery)
+      );
+    });
+  }, [normalizedSearchQuery, scopedEntries]);
+
   const vendorOptions = useMemo(
     () => [
       "All Vendors",
       ...[
         ...new Set(
-          scopedEntries
+          searchedEntries
             .map((e) => e.vendor?.full_name || "Local Shop")
             .filter(Boolean),
         ),
       ],
     ],
-    [scopedEntries],
+    [searchedEntries],
   );
 
   const vendorScopedEntries = useMemo(() => {
     if (selectedVendor === "All Vendors") {
-      return scopedEntries;
+      return searchedEntries;
     }
-    return scopedEntries.filter(
+    return searchedEntries.filter(
       (e) => (e.vendor?.full_name || "Local Shop") === selectedVendor,
     );
-  }, [scopedEntries, selectedVendor]);
+  }, [searchedEntries, selectedVendor]);
 
   const uniqueItems = useMemo(
     () => [...new Set(vendorScopedEntries.map((e) => e.item_name).filter(Boolean))],
@@ -557,6 +573,21 @@ const AnalyticsTab = ({ user }) => {
         >
           <View style={styles.selectorContainer}>
             <Text style={styles.sectionLabel}>Timeframe</Text>
+            <View style={styles.analyticsSearchRow}>
+              <Icon name="search" size={18} color={COLORS.textMuted} />
+              <TextInput
+                style={styles.analyticsSearchInput}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search item or vendor..."
+                placeholderTextColor={COLORS.textMuted}
+              />
+              {!!searchQuery && (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <Icon name="close" size={18} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
             {user.role === "Super Admin" && (
               <View style={styles.analyticsBranchWrap}>
                 <Text style={styles.analyticsBranchLabel}>Branch</Text>
@@ -719,7 +750,9 @@ const AnalyticsTab = ({ user }) => {
           <View style={styles.selectorContainer}>
             <Text style={styles.sectionLabel}>Choose Item(s)</Text>
             {branchItems.length === 0 ? (
-              <Text style={styles.chartHintText}>No items for selected branch.</Text>
+              <Text style={styles.chartHintText}>
+                No items for the current branch, vendor, or search filter.
+              </Text>
             ) : (
               <View style={styles.analyticsItemsWrap}>
                 <TouchableOpacity

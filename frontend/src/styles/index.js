@@ -1136,6 +1136,24 @@ export const analyticsTabStyles = StyleSheet.create({
   analyticsPresetTextActive: {
     color: COLORS.white,
   },
+  analyticsSearchRow: {
+    marginBottom: 12,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.surfaceAlt,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  analyticsSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    paddingVertical: 0,
+  },
   analyticsDateRow: {
     flexDirection: "row",
     gap: 10,
