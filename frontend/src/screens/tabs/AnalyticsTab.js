@@ -24,12 +24,12 @@ import { COLORS } from "../../styles/theme";
 
 const screenWidth = Dimensions.get("window").width;
 const ITEM_COLORS = [
-  "#1E88E5",
-  "#FB8C00",
-  "#43A047",
-  "#E53935",
-  "#8E24AA",
-  "#00897B",
+  "#2FAD1F",
+  "#238217",
+  "#62E052",
+  "#18570F",
+  "#89E87D",
+  "#3D9D47",
 ];
 
 const getLocalDateString = (dateObj) => {
