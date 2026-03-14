@@ -258,11 +258,40 @@ export const validateItemsList = (req, res, next) => {
 
 export const validateCreateItem = (req, res, next) => {
   try {
-    const { item_name, branch_name, created_by } = req.body || {};
+    const { item_name, branch_name, created_by, predefined_price } = req.body || {};
     const errors = [];
     if (!nonEmptyString(item_name)) errors.push("item_name is required");
     if (!nonEmptyString(branch_name)) errors.push("branch_name is required");
     if (!isIntegerId(created_by)) errors.push("created_by must be a positive integer");
+    if (
+      predefined_price !== undefined &&
+      predefined_price !== null &&
+      !isPositiveNumber(predefined_price)
+    ) {
+      errors.push("predefined_price must be a positive number");
+    }
+    if (errors.length) failValidation(errors);
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const validateUpdateItem = (req, res, next) => {
+  try {
+    const { item_name, predefined_price } = req.body || {};
+    const errors = [];
+    if (!isIntegerId(req.params.id)) errors.push("id param must be a positive integer");
+    if (item_name !== undefined && !nonEmptyString(item_name)) {
+      errors.push("item_name must be a non-empty string");
+    }
+    if (
+      predefined_price !== undefined &&
+      predefined_price !== null &&
+      !isPositiveNumber(predefined_price)
+    ) {
+      errors.push("predefined_price must be a positive number");
+    }
     if (errors.length) failValidation(errors);
     next();
   } catch (error) {

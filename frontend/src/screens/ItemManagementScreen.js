@@ -7,6 +7,7 @@ import {
   FlatList,
   Alert,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import { backendItems } from "../services/apiClient";
@@ -19,6 +20,11 @@ const ItemManagementScreen = ({ navigation, route }) => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [newItemName, setNewItemName] = useState("");
+  const [newItemPrice, setNewItemPrice] = useState("");
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [editingName, setEditingName] = useState("");
+  const [editingPrice, setEditingPrice] = useState("");
 
   const branchName = user.branches?.[0] || "Unknown Branch";
 
@@ -40,17 +46,58 @@ const ItemManagementScreen = ({ navigation, route }) => {
 
   const handleAddItem = async () => {
     if (!newItemName.trim()) return Alert.alert("Error", "Enter an item name");
+    if (newItemPrice.trim() && Number.isNaN(Number(newItemPrice))) {
+      return Alert.alert("Error", "Enter a valid predefined price");
+    }
     try {
       setLoading(true);
       await backendItems.create({
         item_name: newItemName.trim(),
         branch_name: branchName,
         created_by: user.id,
+        predefined_price: newItemPrice.trim() ? Number(newItemPrice) : null,
       });
       setNewItemName("");
+      setNewItemPrice("");
       fetchItems();
     } catch (error) {
       Alert.alert("Error", error?.response?.data?.error || "Could not add item.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEditModal = (item) => {
+    setEditingItem(item);
+    setEditingName(item.item_name || "");
+    setEditingPrice(
+      item.predefined_price === null || item.predefined_price === undefined
+        ? ""
+        : String(item.predefined_price)
+    );
+    setEditModalVisible(true);
+  };
+
+  const handleUpdateItem = async () => {
+    if (!editingItem?.id) return;
+    if (!editingName.trim()) return Alert.alert("Error", "Enter an item name");
+    if (editingPrice.trim() && Number.isNaN(Number(editingPrice))) {
+      return Alert.alert("Error", "Enter a valid predefined price");
+    }
+
+    try {
+      setLoading(true);
+      await backendItems.update(editingItem.id, {
+        item_name: editingName.trim(),
+        predefined_price: editingPrice.trim() ? Number(editingPrice) : null,
+      });
+      setEditModalVisible(false);
+      setEditingItem(null);
+      setEditingName("");
+      setEditingPrice("");
+      fetchItems();
+    } catch (error) {
+      Alert.alert("Error", error?.response?.data?.error || "Could not update item.");
     } finally {
       setLoading(false);
     }
@@ -79,18 +126,31 @@ const ItemManagementScreen = ({ navigation, route }) => {
 
   const renderItem = ({ item }) => (
     <View style={styles.itemCard}>
-      <View>
+      <View style={{ flex: 1 }}>
         <Text style={styles.itemName}>{item.item_name}</Text>
+        <Text style={styles.itemPriceText}>
+          {item.predefined_price
+            ? `Predefined price: Rs ${Number(item.predefined_price).toFixed(2)}`
+            : "Predefined price: Not set"}
+        </Text>
         <Text style={styles.itemDate}>
           {new Date(item.created_at).toLocaleDateString()}
         </Text>
       </View>
-      <TouchableOpacity
-        onPress={() => handleDeleteItem(item.id)}
-        style={{ padding: 8 }}
-      >
-        <Icon name="delete" size={24} color={COLORS.danger} />
-      </TouchableOpacity>
+      <View style={styles.itemActions}>
+        <TouchableOpacity
+          onPress={() => openEditModal(item)}
+          style={{ padding: 8 }}
+        >
+          <Icon name="edit" size={22} color={COLORS.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => handleDeleteItem(item.id)}
+          style={{ padding: 8 }}
+        >
+          <Icon name="delete" size={24} color={COLORS.danger} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -112,6 +172,13 @@ const ItemManagementScreen = ({ navigation, route }) => {
             placeholder="New Item Name"
             value={newItemName}
             onChangeText={setNewItemName}
+          />
+          <TextInput
+            style={styles.priceInput}
+            placeholder="Price"
+            value={newItemPrice}
+            onChangeText={setNewItemPrice}
+            keyboardType="decimal-pad"
           />
           <TouchableOpacity
             style={styles.addBtn}
@@ -138,6 +205,47 @@ const ItemManagementScreen = ({ navigation, route }) => {
           <Text style={styles.emptyText}>No items added yet.</Text>
         }
       />
+
+      <Modal visible={editModalVisible} transparent animationType="fade">
+        <View style={styles.editModalOverlay}>
+          <View style={styles.editModalCard}>
+            <Text style={styles.editModalTitle}>Update Item</Text>
+            <TextInput
+              style={styles.editInput}
+              placeholder="Item name"
+              value={editingName}
+              onChangeText={setEditingName}
+            />
+            <TextInput
+              style={styles.editInput}
+              placeholder="Predefined price (optional)"
+              value={editingPrice}
+              onChangeText={setEditingPrice}
+              keyboardType="decimal-pad"
+            />
+            <Text style={styles.editHintText}>
+              Leave predefined price empty to keep this item manual.
+            </Text>
+            <View style={styles.editModalActions}>
+              <TouchableOpacity
+                style={styles.editCancelBtn}
+                onPress={() => setEditModalVisible(false)}
+              >
+                <Text style={styles.editCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.editSaveBtn}
+                onPress={handleUpdateItem}
+                disabled={loading}
+              >
+                <Text style={styles.editSaveText}>
+                  {loading ? "Saving..." : "Save"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

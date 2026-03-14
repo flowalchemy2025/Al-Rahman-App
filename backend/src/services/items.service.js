@@ -22,6 +22,17 @@ export const itemsService = {
     return data;
   },
 
+  async update(id, payload) {
+    const { data, error } = await supabaseAdmin
+      .from("branch_items")
+      .update(payload)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw new ApiError(400, error.message);
+    return data;
+  },
+
   async remove(id) {
     const { data: existing } = await supabaseAdmin
       .from("branch_items")

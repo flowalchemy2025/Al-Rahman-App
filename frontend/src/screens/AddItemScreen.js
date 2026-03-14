@@ -22,6 +22,11 @@ import { COLORS } from "../styles/theme";
 
 const UNITS = ["Kg", "Count", "Litre", "Box", "Gram", "Packet", "Dozen", "Others"];
 
+const parsePositiveNumber = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+};
+
 const AddItemScreen = ({ navigation, route }) => {
   const { user } = route.params;
   const [loading, setLoading] = useState(false);
@@ -62,11 +67,25 @@ const AddItemScreen = ({ navigation, route }) => {
 
       // 2. Fetch Preset Items for this branch
       const itemData = await backendItems.list({ branchName: user.branches[0] });
-      setBranchItems((itemData || []).map((i) => i.item_name));
+      setBranchItems(itemData || []);
     } catch (error) {
       Alert.alert("Error", error?.response?.data?.error || "Failed to load form data");
     }
   };
+
+  useEffect(() => {
+    if (!selectedItemName || selectedItemName === "Others") return;
+
+    const selectedItem = branchItems.find((item) => item.item_name === selectedItemName);
+    const predefinedPrice = parsePositiveNumber(selectedItem?.predefined_price);
+    const quantityValue = parsePositiveNumber(quantity);
+
+    if (predefinedPrice && quantityValue) {
+      setPrice((predefinedPrice * quantityValue).toFixed(2));
+    } else if (predefinedPrice && !quantity.trim()) {
+      setPrice("");
+    }
+  }, [selectedItemName, quantity, branchItems]);
 
   const openCamera = async (type) => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -171,6 +190,10 @@ const AddItemScreen = ({ navigation, route }) => {
 
   const selectedVendorLabel =
     vendors.find((v) => v.id === selectedVendor)?.full_name || "Select vendor";
+  const selectedItemConfig = branchItems.find((item) => item.item_name === selectedItemName);
+  const selectedItemPredefinedPrice = parsePositiveNumber(
+    selectedItemConfig?.predefined_price,
+  );
 
   const renderImageSection = (title, images, type) => (
     <View style={{ marginBottom: 20 }}>
@@ -270,7 +293,7 @@ const AddItemScreen = ({ navigation, route }) => {
             showsHorizontalScrollIndicator={false}
             style={{ marginBottom: 8 }}
           >
-            {[...branchItems, "Others"].map((item) => (
+            {[...branchItems.map((item) => item.item_name), "Others"].map((item) => (
               <TouchableOpacity
                 key={item}
                 style={[
@@ -298,6 +321,12 @@ const AddItemScreen = ({ navigation, route }) => {
               onChangeText={setCustomItemName}
             />
           )}
+          {selectedItemPredefinedPrice ? (
+            <Text style={styles.helperText}>
+              Predefined price: Rs {selectedItemPredefinedPrice.toFixed(2)} per unit. Total
+              price updates from quantity automatically.
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.inputContainer}>
@@ -364,12 +393,24 @@ const AddItemScreen = ({ navigation, route }) => {
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Price (Rs) *</Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              selectedItemPredefinedPrice && styles.autoCalculatedInput,
+            ]}
             value={price}
             onChangeText={setPrice}
-            placeholder="Enter price amount"
+            placeholder={
+              selectedItemPredefinedPrice
+                ? "Calculated from quantity"
+                : "Enter price amount"
+            }
             keyboardType="decimal-pad"
           />
+          {selectedItemPredefinedPrice ? (
+            <Text style={styles.helperText}>
+              You can still adjust the total manually if needed.
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.inputContainer}>

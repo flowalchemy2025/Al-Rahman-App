@@ -76,7 +76,10 @@ const getStoredAuthBundle = async () => {
 };
 
 const persistAuthBundle = async ({ session, user }) => {
-  const currentBundle = (await getStoredAuthBundle()) || { user: null, session: null };
+  const currentBundle = (await getStoredAuthBundle()) || {
+    user: null,
+    session: null,
+  };
   const nextBundle = {
     user: user ?? currentBundle.user ?? null,
     session: normalizeSession(session ?? currentBundle.session),
@@ -158,7 +161,8 @@ api.interceptors.response.use(
     const originalRequest = error?.config || {};
     const requestUrl = String(originalRequest?.url || "");
     const isAuthEndpoint =
-      requestUrl.includes("/auth/login") || requestUrl.includes("/auth/refresh");
+      requestUrl.includes("/auth/login") ||
+      requestUrl.includes("/auth/refresh");
 
     if (status !== 401 || originalRequest._retry || isAuthEndpoint) {
       throw error;
@@ -242,7 +246,8 @@ export const backendAuth = {
 
       const user = await this.me();
       await persistAuthBundle({
-        session: (await getStoredAuthBundle())?.session || bundle.session || null,
+        session:
+          (await getStoredAuthBundle())?.session || bundle.session || null,
         user,
       });
       return user;
@@ -328,6 +333,9 @@ export const backendItems = {
   },
   create(payload) {
     return api.post("/items", payload).then((r) => r.data?.data);
+  },
+  update(id, payload) {
+    return api.patch(`/items/${id}`, payload).then((r) => r.data?.data);
   },
   remove(id) {
     return api.delete(`/items/${id}`).then((r) => r.data?.success);

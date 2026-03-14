@@ -12,6 +12,7 @@ import {
   Platform,
   Image,
 } from "react-native";
+import { Calendar } from "react-native-calendars";
 import { MaterialIcons as Icon } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -19,6 +20,32 @@ import { backendLedger, backendPayments, backendPurchases } from "../services/ap
 import { uploadImage } from "../services/imageService";
 import { vendorLedgerStyles as styles } from "../styles";
 import { COLORS } from "../styles/theme";
+
+const getDateKey = (dateInput) => {
+  if (typeof dateInput === "string") {
+    const normalized = dateInput.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(normalized)) {
+      return normalized.slice(0, 10);
+    }
+  }
+
+  const date = dateInput ? new Date(dateInput) : new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const formatFilterDate = (dateString) => {
+  if (!dateString) return "Select";
+  const [year, month, day] = String(dateString).split("-");
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  return date.toLocaleDateString([], {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
 
 const VendorLedgerScreen = ({ navigation, route }) => {
   const { vendor, branchName, user } = route.params;
@@ -44,10 +71,30 @@ const VendorLedgerScreen = ({ navigation, route }) => {
   const [commentText, setCommentText] = useState("");
   const [activeLedgerItem, setActiveLedgerItem] = useState(null);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [activeDateField, setActiveDateField] = useState("from");
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    const nextBalance = ledger.reduce((sum, entry) => {
+      const entryDate = getDateKey(entry.date);
+      if (fromDate && entryDate < fromDate) return sum;
+      if (toDate && entryDate > toDate) return sum;
+
+      const value = parseFloat(entry.value || 0);
+      if (entry.ledgerType === "Purchase" || entry.ledgerType === "Adjustment") {
+        return sum + value;
+      }
+      return sum - value;
+    }, 0);
+
+    setBalance(nextBalance);
+  }, [ledger, fromDate, toDate]);
 
   const loadData = async () => {
     try {
@@ -208,6 +255,47 @@ const VendorLedgerScreen = ({ navigation, route }) => {
     }
   };
 
+  const openDatePicker = (field) => {
+    setActiveDateField(field);
+    setDatePickerVisible(true);
+  };
+
+  const clearDateFilters = () => {
+    setFromDate("");
+    setToDate("");
+  };
+
+  const filteredLedger = ledger.filter((entry) => {
+    const entryDate = getDateKey(entry.date);
+    if (fromDate && entryDate < fromDate) return false;
+    if (toDate && entryDate > toDate) return false;
+    return true;
+  });
+
+  const filteredBalance = filteredLedger.reduce((sum, entry) => {
+    const value = parseFloat(entry.value || 0);
+    if (entry.ledgerType === "Purchase" || entry.ledgerType === "Adjustment") {
+      return sum + value;
+    }
+    return sum - value;
+  }, 0);
+
+  const markedDates = {};
+  if (fromDate) {
+    markedDates[fromDate] = {
+      ...(markedDates[fromDate] || {}),
+      selected: true,
+      selectedColor: COLORS.primary,
+    };
+  }
+  if (toDate) {
+    markedDates[toDate] = {
+      ...(markedDates[toDate] || {}),
+      selected: true,
+      selectedColor: COLORS.primaryDark,
+    };
+  }
+
   const renderItem = ({ item }) => (
     <View style={styles.ledgerCard}>
       <View style={styles.ledgerIconContainer}>
@@ -305,19 +393,46 @@ const VendorLedgerScreen = ({ navigation, route }) => {
       </View>
 
       <View style={styles.balanceHeaderCard}>
-        <Text style={styles.balanceHeaderLabel}>Outstanding Balance</Text>
+        <Text style={styles.balanceHeaderLabel}>
+          {fromDate || toDate ? "Date-wise Outstanding Balance" : "Outstanding Balance"}
+        </Text>
         <Text
           style={[
             styles.balanceHeaderAmount,
-            { color: balance > 0 ? COLORS.danger : COLORS.success },
+            { color: filteredBalance > 0 ? COLORS.danger : COLORS.success },
           ]}
         >
           ₹{balance.toFixed(2)}
         </Text>
       </View>
 
+      <View style={styles.filterCard}>
+        <Text style={styles.filterTitle}>Filter by Date</Text>
+        <View style={styles.filterRow}>
+          <TouchableOpacity
+            style={styles.filterChip}
+            onPress={() => openDatePicker("from")}
+          >
+            <Text style={styles.filterChipLabel}>From</Text>
+            <Text style={styles.filterChipValue}>{formatFilterDate(fromDate)}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.filterChip}
+            onPress={() => openDatePicker("to")}
+          >
+            <Text style={styles.filterChipLabel}>To</Text>
+            <Text style={styles.filterChipValue}>{formatFilterDate(toDate)}</Text>
+          </TouchableOpacity>
+        </View>
+        {(fromDate || toDate) && (
+          <TouchableOpacity style={styles.clearFilterBtn} onPress={clearDateFilters}>
+            <Text style={styles.clearFilterText}>Clear Date Filter</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       <FlatList
-        data={ledger}
+        data={filteredLedger}
         keyExtractor={(item, index) => index.toString()}
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
@@ -327,7 +442,7 @@ const VendorLedgerScreen = ({ navigation, route }) => {
           <Text
             style={{ textAlign: "center", color: COLORS.textMuted, marginTop: 20 }}
           >
-            No transactions found.
+            No transactions found for the selected date range.
           </Text>
         }
       />
@@ -531,6 +646,50 @@ const VendorLedgerScreen = ({ navigation, route }) => {
                 <Text style={styles.commentSaveText}>
                   {commentSubmitting ? "Saving..." : "Save"}
                 </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={datePickerVisible} transparent animationType="fade">
+        <View style={styles.commentModalBackdrop}>
+          <View style={styles.commentModalCard}>
+            <Text style={styles.commentModalTitle}>
+              Select {activeDateField === "from" ? "From" : "To"} Date
+            </Text>
+            <Calendar
+              current={
+                activeDateField === "from"
+                  ? fromDate || getDateKey(new Date())
+                  : toDate || fromDate || getDateKey(new Date())
+              }
+              markedDates={markedDates}
+              onDayPress={(day) => {
+                if (activeDateField === "from") {
+                  setFromDate(day.dateString);
+                  if (toDate && day.dateString > toDate) {
+                    setToDate(day.dateString);
+                  }
+                } else {
+                  setToDate(day.dateString);
+                  if (fromDate && day.dateString < fromDate) {
+                    setFromDate(day.dateString);
+                  }
+                }
+                setDatePickerVisible(false);
+              }}
+              theme={{
+                selectedDayBackgroundColor: COLORS.primaryDark,
+                todayTextColor: COLORS.primaryDark,
+                arrowColor: COLORS.primaryDark,
+              }}
+            />
+            <View style={styles.commentActions}>
+              <TouchableOpacity
+                style={styles.commentCancelBtn}
+                onPress={() => setDatePickerVisible(false)}
+              >
+                <Text style={styles.commentCancelText}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -17,6 +17,16 @@ export const createItem = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data });
 });
 
+export const updateItem = asyncHandler(async (req, res) => {
+  const data = await itemsService.update(Number(req.params.id), req.body);
+  await auditService.log(req, "items.update", {
+    targetType: "branch_items",
+    targetId: data.id,
+    metadata: { changedKeys: Object.keys(req.body || {}) },
+  });
+  res.json({ success: true, data });
+});
+
 export const deleteItem = asyncHandler(async (req, res) => {
   const deleted = await itemsService.remove(Number(req.params.id));
   await auditService.log(req, "items.delete", {
