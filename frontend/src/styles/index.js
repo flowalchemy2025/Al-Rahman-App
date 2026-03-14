@@ -1140,6 +1140,40 @@ export const analyticsTabStyles = StyleSheet.create({
     flexDirection: "row",
     gap: 10,
   },
+  analyticsItemsWrap: {
+    width: "100%",
+  },
+  analyticsItemsMenu: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    backgroundColor: COLORS.white,
+    overflow: "hidden",
+  },
+  analyticsItemsScroll: {
+    maxHeight: 220,
+  },
+  analyticsItemsOption: {
+    minHeight: 44,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.divider,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  analyticsItemsOptionText: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+  },
+  analyticsItemsOptionTextActive: {
+    color: COLORS.primaryDark,
+    fontWeight: "700",
+  },
   chipScroll: { flexDirection: "row" },
   chip: {
     paddingHorizontal: 14,

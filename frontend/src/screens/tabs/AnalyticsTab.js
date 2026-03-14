@@ -61,6 +61,26 @@ const formatLabel = (date) =>
 const formatMonthLabel = (date) =>
   date.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
 
+const formatWeekLabel = (startDate, endDate) => {
+  const sameMonth =
+    startDate.getFullYear() === endDate.getFullYear() &&
+    startDate.getMonth() === endDate.getMonth();
+  const startLabel = startDate.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+
+  if (sameMonth) {
+    return `${startLabel}-${endDate.getDate()}`;
+  }
+
+  const endLabel = endDate.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return `${startLabel}-${endLabel}`;
+};
+
 const getOrderedRange = (start, end) => (start <= end ? [start, end] : [end, start]);
 
 const escapeCsvCell = (value) => {
@@ -80,7 +100,7 @@ const buildBuckets = (startDate, endDate) => {
     Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
   );
 
-  if (dayDiff <= 31) {
+  if (dayDiff <= 14) {
     let cursor = new Date(start);
     while (cursor <= end) {
       const bucketStart = setStartOfDay(cursor);
@@ -98,7 +118,11 @@ const buildBuckets = (startDate, endDate) => {
       const weekEnd = new Date(cursor);
       weekEnd.setDate(weekEnd.getDate() + 6);
       const bucketEnd = setEndOfDay(weekEnd > end ? end : weekEnd);
-      buckets.push({ start: bucketStart, end: bucketEnd, label: formatLabel(bucketStart) });
+      buckets.push({
+        start: bucketStart,
+        end: bucketEnd,
+        label: formatWeekLabel(bucketStart, bucketEnd),
+      });
       cursor.setDate(cursor.getDate() + 7);
     }
     return buckets;
@@ -156,7 +180,10 @@ const AnalyticsTab = ({ user }) => {
   const [chartType, setChartType] = useState("Line");
   const [selectedPoint, setSelectedPoint] = useState(null);
   const [selectedBranch, setSelectedBranch] = useState("All Branches");
+  const [selectedVendor, setSelectedVendor] = useState("All Vendors");
   const [showBranchDropdown, setShowBranchDropdown] = useState(false);
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
+  const [showItemsDropdown, setShowItemsDropdown] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -193,6 +220,9 @@ const AnalyticsTab = ({ user }) => {
       setEntries(branchData);
       setIsAllItemsSelected(false);
       setSelectedItems([]);
+      setSelectedVendor("All Vendors");
+      setShowVendorDropdown(false);
+      setShowItemsDropdown(false);
     } catch (error) {
       Alert.alert("Error", error?.response?.data?.error || "Could not fetch analytics data.");
     } finally {
@@ -215,9 +245,32 @@ const AnalyticsTab = ({ user }) => {
     return entries.filter((e) => e.branch_name === selectedBranch);
   }, [entries, selectedBranch, user.role]);
 
-  const uniqueItems = useMemo(
-    () => [...new Set(scopedEntries.map((e) => e.item_name).filter(Boolean))],
+  const vendorOptions = useMemo(
+    () => [
+      "All Vendors",
+      ...[
+        ...new Set(
+          scopedEntries
+            .map((e) => e.vendor?.full_name || "Local Shop")
+            .filter(Boolean),
+        ),
+      ],
+    ],
     [scopedEntries],
+  );
+
+  const vendorScopedEntries = useMemo(() => {
+    if (selectedVendor === "All Vendors") {
+      return scopedEntries;
+    }
+    return scopedEntries.filter(
+      (e) => (e.vendor?.full_name || "Local Shop") === selectedVendor,
+    );
+  }, [scopedEntries, selectedVendor]);
+
+  const uniqueItems = useMemo(
+    () => [...new Set(vendorScopedEntries.map((e) => e.item_name).filter(Boolean))],
+    [vendorScopedEntries],
   );
 
   useEffect(() => {
@@ -230,6 +283,18 @@ const AnalyticsTab = ({ user }) => {
       return [uniqueItems[0]];
     });
   }, [isAllItemsSelected, uniqueItems]);
+
+  useEffect(() => {
+    if (!branchItems.length) {
+      setShowItemsDropdown(false);
+    }
+  }, [branchItems.length]);
+
+  useEffect(() => {
+    if (!vendorOptions.includes(selectedVendor)) {
+      setSelectedVendor("All Vendors");
+    }
+  }, [selectedVendor, vendorOptions]);
 
   const toggleItem = (itemName) => {
     setSelectedItems((prev) => {
@@ -265,11 +330,11 @@ const AnalyticsTab = ({ user }) => {
     const [rangeStart, rangeEnd] = getOrderedRange(startDateObj, endDateObj);
     const start = setStartOfDay(rangeStart);
     const end = setEndOfDay(rangeEnd);
-    return scopedEntries.filter((e) => {
+    return vendorScopedEntries.filter((e) => {
       const dt = new Date(e.created_at);
       return dt >= start && dt <= end;
     });
-  }, [scopedEntries, startDate, endDate]);
+  }, [vendorScopedEntries, startDate, endDate]);
 
   const selectedEntries = useMemo(
     () => rangedEntries.filter((e) => selectedItems.includes(e.item_name)),
@@ -348,6 +413,14 @@ const AnalyticsTab = ({ user }) => {
   );
   const totalEntries = selectedEntries.length;
   const avgSpend = totalEntries > 0 ? totalSpent / totalEntries : 0;
+
+  const selectedItemsLabel = useMemo(() => {
+    if (branchItems.length === 0) return "No items available";
+    if (isAllItemsSelected) return `All Items (${branchItems.length})`;
+    if (selectedItems.length === 0) return "Select item(s)";
+    if (selectedItems.length === 1) return selectedItems[0];
+    return `${selectedItems.length} items selected`;
+  }, [branchItems.length, isAllItemsSelected, selectedItems]);
 
   const handleExport = async () => {
     try {
@@ -445,7 +518,7 @@ const AnalyticsTab = ({ user }) => {
       stroke: COLORS.borderSoft,
       strokeWidth: 1,
     },
-    propsForLabels: { fontSize: 10 },
+    propsForLabels: { fontSize: buckets.length > 4 ? 8 : 10 },
   };
 
   if (loading && entries.length === 0) {
@@ -489,7 +562,11 @@ const AnalyticsTab = ({ user }) => {
                 <Text style={styles.analyticsBranchLabel}>Branch</Text>
                 <TouchableOpacity
                   style={styles.analyticsBranchTrigger}
-                  onPress={() => setShowBranchDropdown((prev) => !prev)}
+                  onPress={() => {
+                    setShowBranchDropdown((prev) => !prev);
+                    setShowVendorDropdown(false);
+                    setShowItemsDropdown(false);
+                  }}
                 >
                   <Text
                     style={[
@@ -516,6 +593,9 @@ const AnalyticsTab = ({ user }) => {
                           onPress={() => {
                             setSelectedBranch(branchName);
                             setShowBranchDropdown(false);
+                            setSelectedVendor("All Vendors");
+                            setShowVendorDropdown(false);
+                            setShowItemsDropdown(false);
                             setIsAllItemsSelected(false);
                             setSelectedItems([]);
                           }}
@@ -536,6 +616,61 @@ const AnalyticsTab = ({ user }) => {
                 )}
               </View>
             )}
+            <View style={styles.analyticsBranchWrap}>
+              <Text style={styles.analyticsBranchLabel}>Vendor</Text>
+              <TouchableOpacity
+                style={styles.analyticsBranchTrigger}
+                onPress={() => {
+                  setShowVendorDropdown((prev) => !prev);
+                  setShowBranchDropdown(false);
+                  setShowItemsDropdown(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.analyticsBranchText,
+                    selectedVendor === "All Vendors" &&
+                      styles.analyticsBranchTextPlaceholder,
+                  ]}
+                >
+                  {selectedVendor}
+                </Text>
+                <Icon
+                  name={showVendorDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                  size={22}
+                  color={COLORS.textSecondary}
+                />
+              </TouchableOpacity>
+              {showVendorDropdown && (
+                <View style={styles.analyticsBranchMenu}>
+                  <ScrollView nestedScrollEnabled style={styles.analyticsBranchScroll}>
+                    {vendorOptions.map((vendorName) => (
+                      <TouchableOpacity
+                        key={vendorName}
+                        style={styles.analyticsBranchItem}
+                        onPress={() => {
+                          setSelectedVendor(vendorName);
+                          setShowVendorDropdown(false);
+                          setShowItemsDropdown(false);
+                          setIsAllItemsSelected(false);
+                          setSelectedItems([]);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.analyticsBranchItemText,
+                            selectedVendor === vendorName &&
+                              styles.analyticsBranchItemTextActive,
+                          ]}
+                        >
+                          {vendorName}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
             <View style={styles.analyticsPresetRow}>
               {["1 Week", "1 Month", "6 Months"].map((preset) => (
                 <TouchableOpacity
@@ -586,37 +721,74 @@ const AnalyticsTab = ({ user }) => {
             {branchItems.length === 0 ? (
               <Text style={styles.chartHintText}>No items for selected branch.</Text>
             ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.chipScroll}
-              >
+              <View style={styles.analyticsItemsWrap}>
                 <TouchableOpacity
-                  style={[styles.chip, isAllItemsSelected && styles.chipActive]}
-                  onPress={toggleAllItems}
+                  style={styles.analyticsBranchTrigger}
+                  onPress={() => {
+                    setShowItemsDropdown((prev) => !prev);
+                    setShowBranchDropdown(false);
+                    setShowVendorDropdown(false);
+                  }}
                 >
                   <Text
-                    style={[styles.chipText, isAllItemsSelected && styles.chipTextActive]}
+                    style={[
+                      styles.analyticsBranchText,
+                      selectedItems.length === 0 && styles.analyticsBranchTextPlaceholder,
+                    ]}
                   >
-                    All
+                    {selectedItemsLabel}
                   </Text>
+                  <Icon
+                    name={showItemsDropdown ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                    size={22}
+                    color={COLORS.textSecondary}
+                  />
                 </TouchableOpacity>
-                {branchItems.map((item) => {
-                  const active =
-                    isAllItemsSelected || selectedItems.includes(item);
-                  return (
-                    <TouchableOpacity
-                      key={item}
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => toggleItem(item)}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                        {item}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                {showItemsDropdown && (
+                  <View style={styles.analyticsItemsMenu}>
+                    <ScrollView nestedScrollEnabled style={styles.analyticsItemsScroll}>
+                      <TouchableOpacity
+                        style={styles.analyticsItemsOption}
+                        onPress={toggleAllItems}
+                      >
+                        <Text
+                          style={[
+                            styles.analyticsItemsOptionText,
+                            isAllItemsSelected && styles.analyticsItemsOptionTextActive,
+                          ]}
+                        >
+                          All Items
+                        </Text>
+                        {isAllItemsSelected && (
+                          <Icon name="check" size={18} color={COLORS.primaryDark} />
+                        )}
+                      </TouchableOpacity>
+                      {branchItems.map((item) => {
+                        const active = isAllItemsSelected || selectedItems.includes(item);
+                        return (
+                          <TouchableOpacity
+                            key={item}
+                            style={styles.analyticsItemsOption}
+                            onPress={() => toggleItem(item)}
+                          >
+                            <Text
+                              style={[
+                                styles.analyticsItemsOptionText,
+                                active && styles.analyticsItemsOptionTextActive,
+                              ]}
+                            >
+                              {item}
+                            </Text>
+                            {active && (
+                              <Icon name="check" size={18} color={COLORS.primaryDark} />
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
             )}
           </View>
 
@@ -665,6 +837,7 @@ const AnalyticsTab = ({ user }) => {
                 style={styles.chartStyle}
                 fromZero
                 bezier={false}
+                verticalLabelRotation={buckets.length > 4 ? 20 : 0}
                 onDataPointClick={({ value, index, dataset }) => {
                   const seriesName =
                     chartData.legend?.[chartData.datasets.indexOf(dataset)] || "Series";
@@ -686,6 +859,7 @@ const AnalyticsTab = ({ user }) => {
                 style={styles.chartStyle}
                 fromZero
                 showValuesOnTopOfBars
+                verticalLabelRotation={buckets.length > 4 ? 20 : 0}
                 onDataPointClick={({ value, index }) => {
                   setSelectedPoint({
                     label: barChartData.labels[index],
