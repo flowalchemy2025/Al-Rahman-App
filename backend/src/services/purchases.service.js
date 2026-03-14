@@ -3,24 +3,38 @@ import { ApiError } from "../utils/ApiError.js";
 
 export const purchasesService = {
   async list(filters = {}) {
-    let query = supabaseAdmin.from("purchase_entries").select(`
-      *,
-      worker:worker_id(id, full_name, username),
-      vendor:vendor_id(id, full_name, username)
-    `);
+    const pageSize = 1000;
+    const buildQuery = () => {
+      let query = supabaseAdmin.from("purchase_entries").select(`
+        *,
+        worker:worker_id(id, full_name, username),
+        vendor:vendor_id(id, full_name, username)
+      `);
 
-    if (filters.workerId) query = query.eq("worker_id", filters.workerId);
-    if (filters.vendorId) query = query.eq("vendor_id", filters.vendorId);
-    if (filters.branchName) query = query.eq("branch_name", filters.branchName);
-    if (filters.startDate) query = query.gte("created_at", filters.startDate);
-    if (filters.endDate) query = query.lte("created_at", filters.endDate);
-    if (filters.searchTerm) query = query.ilike("item_name", `%${filters.searchTerm}%`);
+      if (filters.workerId) query = query.eq("worker_id", filters.workerId);
+      if (filters.vendorId) query = query.eq("vendor_id", filters.vendorId);
+      if (filters.branchName) query = query.eq("branch_name", filters.branchName);
+      if (filters.startDate) query = query.gte("created_at", filters.startDate);
+      if (filters.endDate) query = query.lte("created_at", filters.endDate);
+      if (filters.searchTerm) query = query.ilike("item_name", `%${filters.searchTerm}%`);
 
-    query = query.order("created_at", { ascending: false });
+      return query.order("created_at", { ascending: false });
+    };
 
-    const { data, error } = await query;
-    if (error) throw new ApiError(400, error.message);
-    return data;
+    const allRows = [];
+    let from = 0;
+
+    while (true) {
+      const { data, error } = await buildQuery().range(from, from + pageSize - 1);
+      if (error) throw new ApiError(400, error.message);
+
+      allRows.push(...(data || []));
+
+      if (!data || data.length < pageSize) break;
+      from += pageSize;
+    }
+
+    return allRows;
   },
 
   async create(payload) {
